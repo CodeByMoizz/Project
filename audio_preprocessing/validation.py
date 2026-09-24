@@ -172,17 +172,10 @@ if __name__ == "__main__":
 
     report = validate_audio_file(sys.argv[1])
     
-<<<<<<< HEAD
     
-    # report = validate_audio_file("C:/Users/kashif/Desktop/Project/audio_preprocessing/sample_audio/jonasblakewood-trap-action-urban-546994.mp3")
-=======
->>>>>>> 4e4c2ebb5e991e5599854c2468582754ec2040c2
+    
 
     print(report.summary())
     print("-" * 50)
     for r in report.results:
-<<<<<<< HEAD
         print(f"[{r.status.value:8}] {r.check_name:15} {r.message}")
-=======
-        print(f"[{r.status.value:8}] {r.check_name:15} {r.message}")
->>>>>>> 4e4c2ebb5e991e5599854c2468582754ec2040c2
