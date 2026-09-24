@@ -1,0 +1,140 @@
+Chapter 1 — Introduction
+1.1 Project Overview
+1.2 Problem Statement
+1.3 Background
+1.4 Business Necessity
+1.5 Proposed Solution
+1.6 Objectives
+
+Chapter 2 — System Analysis
+2.1 Existing System
+2.2 Problems in Existing System
+2.3 Proposed System
+2.4 Scope
+2.5 Assumptions
+2.6 Constraints
+
+Chapter 3 — Requirements
+3.1 Functional Requirements
+3.2 Non-Functional Requirements
+3.3 Hardware Requirements
+3.4 Software Requirements
+
+Chapter 4 — System Design
+4.1 System Architecture
+4.2 Module Description
+4.3 Data Flow Diagram
+4.4 Use Case Diagram
+4.5 Activity Diagram
+4.6 Sequence Diagram
+4.7 Decision Flow
+
+Chapter 5 — Dataset & Audio Processing
+5.1 Dataset Classes
+5.2 Dataset Collection
+5.3 Dataset Split
+5.4 Data Augmentation
+5.5 Audio Preprocessing
+5.6 Feature Extraction
+5.7 Waveform
+5.8 Spectrogram
+
+The SRS requires 3,000 original clips, approximately 300 per mandatory class, with a 70/15/15 train-validation-test split.
+
+Chapter 6 — Machine Learning
+6.1 Python ML Pipeline
+6.2 Models Tested
+6.3 Model Training
+6.4 Hyperparameter Tuning
+6.5 Model Evaluation
+6.6 Confusion Matrix
+6.7 Accuracy / Precision / Recall / F1
+6.8 Selected Model
+
+The SRS specifically requires comparison of at least three ML/DL models.
+
+Chapter 7 — Google Teachable Machine
+7.1 GTM Dataset
+7.2 GTM Training
+7.3 GTM Classification
+7.4 GTM Confidence Scores
+7.5 Python vs GTM Comparison
+
+Chapter 8 — Detection & Alert System
+8.1 Sound Classification
+8.2 Confidence Threshold
+8.3 Model Agreement
+8.4 Repeated Detection
+8.5 Audio Quality
+8.6 Severity Levels
+8.7 Critical Event Detection
+8.8 Alert Generation
+8.9 Manual Review
+
+For example, the SRS defines Gunshot, Panic Scream, and Person Asking for Help as critical-level events when the configured confirmation/confidence conditions are satisfied.
+
+Chapter 9 — Web Application
+9.1 Login / Authentication
+9.2 Audio Upload
+9.3 Live Microphone
+9.4 Audio Metadata
+9.5 Waveform
+9.6 Spectrogram
+9.7 Python Prediction
+9.8 GTM Prediction
+9.9 Dashboard
+9.10 Event History
+9.11 Manual Review
+9.12 Reports
+
+Chapter 10 — Database Design
+
+Database architecture
+Tables/collections
+Relationships
+Data dictionary
+Audio metadata
+Predictions
+Confidence scores
+Alerts
+Reviews
+Model versions
+Audit records
+
+Chapter 11 — Testing
+
+Functional testing
+Integration testing
+Audio-format testing
+Microphone testing
+Silence testing
+Noise testing
+Model testing
+Alert testing
+Low-confidence testing
+Model disagreement
+Overlapping sounds
+Duplicate audio
+Hidden-test readiness
+
+Chapter 12 — Security & Privacy
+
+Chapter 13 — Results & Model Comparison
+
+Chapter 14 — Limitations
+
+Chapter 15 — Future Enhancements
+
+Chapter 16 — Installation & Execution
+
+Chapter 17 — Conclusion
+
+Appendices
+
+Screenshots
+Test cases
+Sample predictions
+Dataset statistics
+Model results
+GitHub structure
+AI_USAGE.md
