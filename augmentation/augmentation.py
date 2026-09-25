@@ -210,55 +210,6 @@ def add_reverb(audio):
     return safe_normalize(augmented)
 
 
-def simulate_distance(audio):
-    gain = random.uniform(
-        0.35,
-        0.75
-    )
-
-    distant = audio * gain
-
-    noise = np.random.normal(
-        0,
-        random.uniform(
-            0.001,
-            0.005
-        ),
-        len(distant)
-    )
-
-    distant = distant + noise
-
-    return safe_normalize(distant)
-
-
-def simulate_recording_device(audio):
-    gain_db = random.uniform(
-        -4,
-        4
-    )
-
-    gain = 10 ** (
-        gain_db / 20
-    )
-
-    augmented = audio * gain
-
-    noise_level = random.uniform(
-        0.0005,
-        0.003
-    )
-
-    noise = np.random.normal(
-        0,
-        noise_level,
-        len(augmented)
-    )
-
-    augmented = augmented + noise
-
-    return safe_normalize(augmented)
-
 
 AUGMENTATION_FUNCTIONS = {
     "noise": add_noise,
@@ -267,8 +218,6 @@ AUGMENTATION_FUNCTIONS = {
     "time_stretch": time_stretch,
     "volume": volume_adjustment,
     "reverb": add_reverb,
-    "distance": simulate_distance,
-    "device": simulate_recording_device,
 }
 
 
