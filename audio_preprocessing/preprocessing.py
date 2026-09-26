@@ -1,14 +1,22 @@
 import os
+import sys
+
 import numpy as np
 import librosa
 import soundfile as sf
 
-# project settings, can be changed later after dataset analysis
-TARGET_SAMPLE_RATE = 16000
-SILENCE_TOP_DB = 30
-SEGMENT_DURATION_SEC = 2.0
-PAD_TRUNCATE_DURATION_SEC = 2.0
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from config.config import (
+    SEGMENT_DURATION_SEC,
+    SILENCE_TOP_DB,
+    TARGET_SAMPLE_RATE,
+)
+
+PAD_TRUNCATE_DURATION_SEC = SEGMENT_DURATION_SEC
 OUTPUT_FORMAT = "wav"
+
+MAX_SEGMENTS = 300
 
 
 def load_audio(file_path):
@@ -20,15 +28,19 @@ def load_audio(file_path):
     except Exception as e:
         raise ValueError(f"Could not load audio file {file_path}: {e}")
 
+    if samples is None or samples.size == 0:
+        raise ValueError(f"Audio file has no samples: {file_path}")
+
     return samples, sr
 
 
 def convert_to_mono(samples):
+    samples = np.asarray(samples, dtype=np.float32)
+
     if samples.ndim == 1:
         return samples
 
-    mono_samples = np.mean(samples, axis=0)
-    return mono_samples
+    return np.mean(samples, axis=0).astype(np.float32)
 
 
 def resample_audio(samples, original_sr, target_sr=TARGET_SAMPLE_RATE):
@@ -45,11 +57,13 @@ def normalize_audio(samples):
     if peak < 1e-6:
         return samples
 
-    normalized = samples / peak
-    return normalized
+    return (samples / peak).astype(np.float32)
 
 
 def trim_silence(samples, top_db=SILENCE_TOP_DB):
+    if len(samples) == 0:
+        return samples
+
     trimmed, _ = librosa.effects.trim(samples, top_db=top_db)
 
     if len(trimmed) == 0:
@@ -59,17 +73,23 @@ def trim_silence(samples, top_db=SILENCE_TOP_DB):
 
 
 def reduce_noise(samples, sr, noise_estimate_sec=0.5):
-    # simple method, assumes start of clip is background noise
+    # Simple spectral floor subtraction using the start of the clip as the
+    # noise estimate. Skipped when the start is not actually quieter than the
+    # rest, because subtracting then removes part of the event itself.
     noise_samples_count = int(noise_estimate_sec * sr)
 
-    if noise_samples_count >= len(samples):
+    if noise_samples_count < 1 or noise_samples_count >= len(samples):
         return samples
 
     noise_clip = samples[:noise_samples_count]
-    noise_level = np.mean(np.abs(noise_clip))
+    noise_level = float(np.mean(np.abs(noise_clip)))
+    overall_level = float(np.mean(np.abs(samples)))
+
+    if noise_level >= overall_level * 0.9:
+        return samples
 
     reduced = np.sign(samples) * np.maximum(np.abs(samples) - noise_level, 0)
-    return reduced
+    return reduced.astype(np.float32)
 
 
 def segment_audio(samples, sr, segment_duration=SEGMENT_DURATION_SEC):
@@ -85,10 +105,9 @@ def segment_audio(samples, sr, segment_duration=SEGMENT_DURATION_SEC):
     segment_info = []
 
     start = 0
-    while start < len(samples):
+    while start < len(samples) and len(segments) < MAX_SEGMENTS:
         end = start + segment_len
-        segment = samples[start:end]
-        segments.append(segment)
+        segments.append(samples[start:end])
         segment_info.append((start / sr, min(end, len(samples)) / sr))
         start = end
 
@@ -99,30 +118,34 @@ def pad_or_truncate(samples, sr, target_duration=PAD_TRUNCATE_DURATION_SEC):
     target_len = int(target_duration * sr)
 
     if len(samples) == 0:
-        return np.zeros(target_len)
+        return np.zeros(target_len, dtype=np.float32)
 
     if len(samples) < target_len:
         pad_amount = target_len - len(samples)
-        return np.pad(samples, (0, pad_amount), mode="constant")
+        return np.pad(samples, (0, pad_amount), mode="constant").astype(np.float32)
 
-    if len(samples) > target_len:
-        return samples[:target_len]
-
-    return samples
+    return samples[:target_len].astype(np.float32)
 
 
 def save_processed_audio(samples, sr, output_path):
     output_dir = os.path.dirname(output_path)
     if output_dir and not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
 
     sf.write(output_path, samples, sr, format=OUTPUT_FORMAT.upper())
     return output_path
 
 
-def preprocess_pipeline(file_path, output_dir="data/processed", apply_noise_reduction=True):
+# The one preprocessing entry point. Everything that needs model-ready audio
+# calls this, so uploads, live windows and dataset files are treated the same.
+def prepare_segments(file_path, apply_noise_reduction=True):
     samples, sr = load_audio(file_path)
+    return prepare_segments_from_samples(samples, sr, apply_noise_reduction)
+
+
+def prepare_segments_from_samples(samples, sr, apply_noise_reduction=True):
     samples = convert_to_mono(samples)
+    samples = np.nan_to_num(samples)
     samples, sr = resample_audio(samples, sr)
     samples = normalize_audio(samples)
     samples = trim_silence(samples)
@@ -132,27 +155,30 @@ def preprocess_pipeline(file_path, output_dir="data/processed", apply_noise_redu
 
     segments, segment_info = segment_audio(samples, sr)
 
+    fixed_segments = [pad_or_truncate(segment, sr) for segment in segments]
+
+    return fixed_segments, sr, segment_info
+
+
+def preprocess_pipeline(file_path, output_dir="data/processed", apply_noise_reduction=True):
+    segments, sr, _ = prepare_segments(file_path, apply_noise_reduction)
+
     base_name = os.path.splitext(os.path.basename(file_path))[0]
     saved_paths = []
 
     for i, segment in enumerate(segments):
-        fixed_segment = pad_or_truncate(segment, sr)
         out_name = f"{base_name}_seg{i}.{OUTPUT_FORMAT}"
         out_path = os.path.join(output_dir, out_name)
-        saved_path = save_processed_audio(fixed_segment, sr, out_path)
-        saved_paths.append(saved_path)
+        saved_paths.append(save_processed_audio(segment, sr, out_path))
 
     return saved_paths
 
 
 if __name__ == "__main__":
-    sample_file = os.path.join("sample_audio", "test.wav")
-    
+    sample_file = os.path.join("sample_audio", "test1.wav")
+
     if os.path.exists(sample_file):
-        result_paths = preprocess_pipeline(sample_file)
-        print("Processed segments saved to:")
-        for p in result_paths:
-            print(" -", p)
+        for p in preprocess_pipeline(sample_file):
+            print("saved", p)
     else:
         print(f"Sample file not found: {sample_file}")
-        print("Put a test.wav file inside sample_audio/ and run again.")

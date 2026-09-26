@@ -1,5 +1,17 @@
+import os
+import sys
+
 import librosa
 import numpy as np
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from audio_preprocessing.preprocessing import prepare_segments
+from config.config import TARGET_SAMPLE_RATE
+
+N_MFCC = 13
+N_MELS = 40
+N_CHROMA = 12
 
 
 def get_mean_std(feature_array):
@@ -10,16 +22,16 @@ def get_mean_std(feature_array):
 
 def add_to_dict(features_dict, name, mean, std):
     for i in range(len(mean)):
-        features_dict[f"{name}_{i+1}_mean"] = mean[i]
-        features_dict[f"{name}_{i+1}_std"] = std[i]
+        features_dict[f"{name}_{i+1}_mean"] = float(mean[i])
+        features_dict[f"{name}_{i+1}_std"] = float(std[i])
 
 
-def extract_mfcc(y, sr, n_mfcc=13):
+def extract_mfcc(y, sr, n_mfcc=N_MFCC):
     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
     return get_mean_std(mfcc)
 
 
-def extract_mel_spectrogram(y, sr, n_mels=40):
+def extract_mel_spectrogram(y, sr, n_mels=N_MELS):
     mel = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels)
     mel_db = librosa.power_to_db(mel)
     return get_mean_std(mel_db)
@@ -62,11 +74,22 @@ def extract_onset_strength(y, sr):
 
 def extract_tempo(y, sr):
     tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
+    # librosa returns a scalar on some versions and a 1-element array on others
+    tempo = np.atleast_1d(tempo)
+    if len(tempo) == 0:
+        return 0.0
     return float(tempo[0])
 
 
-def extract_all_features(file_path):
-    y, sr = librosa.load(file_path, sr=None)
+# Every feature vector in the project is built here, so training and inference
+# cannot drift apart. The samples must already be mono at TARGET_SAMPLE_RATE.
+def extract_features_from_samples(y, sr=TARGET_SAMPLE_RATE):
+    y = np.asarray(y, dtype=np.float32)
+
+    if y.ndim > 1:
+        y = np.mean(y, axis=0)
+
+    y = np.nan_to_num(y)
 
     features = {}
 
@@ -108,9 +131,27 @@ def extract_all_features(file_path):
     return features
 
 
-if __name__ == "__main__":
-    sample_path = "sample_processed.wav"
-   
-    result = extract_all_features(sample_path)
-    for key, value in result.items():
-        print(key, ":", value)
+def feature_names():
+    silent_segment = np.zeros(int(TARGET_SAMPLE_RATE * 1.0), dtype=np.float32)
+    return list(extract_features_from_samples(silent_segment).keys())
+
+
+# The column order of a feature vector must never depend on dict ordering,
+# otherwise the model receives its inputs shuffled.
+def features_to_vector(features):
+    return [float(features[name]) for name in FEATURE_NAMES]
+
+
+# A file is preprocessed first, so a segment file from the dataset and an
+# uploaded clip travel the exact same path.
+def extract_all_features(file_path):
+    segments, sr, _ = prepare_segments(file_path)
+
+    if not segments:
+        raise ValueError(f"No usable audio in {file_path}")
+
+    return extract_features_from_samples(segments[0], sr)
+
+
+FEATURE_NAMES = feature_names()
+FEATURE_VECTOR_LENGTH = len(FEATURE_NAMES)

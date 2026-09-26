@@ -1,18 +1,28 @@
+import os
+import sys
+from pathlib import Path
+
 import librosa
 import numpy as np
-from pathlib import Path
 from enum import Enum
 from dataclasses import dataclass, field
 
-# formats we allow
-SUPPORTED_EXTENSIONS = {".wav", ".mp3", ".flac", ".ogg", ".m4a"}
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-# these numbers are not final, just starting values
-MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024
+from config.config import MAX_UPLOAD_BYTES, SUPPORTED_EXTENSIONS as ALLOWED_EXTENSIONS
+
+SUPPORTED_EXTENSIONS = set(ALLOWED_EXTENSIONS)
+
+MAX_FILE_SIZE_BYTES = MAX_UPLOAD_BYTES
 MIN_DURATION_SECONDS = 0.3
-MAX_DURATION_SECONDS = 30.0
-MIN_SAMPLE_RATE = 8000
-MAX_SAMPLE_RATE = 48000
+
+# Clips longer than this are accepted and segmented, not rejected. Only an
+# absurdly long file is refused.
+LONG_DURATION_SECONDS = 30.0
+MAX_DURATION_SECONDS = 600.0
+
+MIN_SAMPLE_RATE = 4000
+MAX_SAMPLE_RATE = 192000
 SILENCE_RMS_THRESHOLD = 0.001
 
 
@@ -75,7 +85,12 @@ def validate_extension(file_path):
 
 
 def validate_file_size(file_path):
-    size_bytes = Path(file_path).stat().st_size
+    path = Path(file_path)
+
+    if not path.exists():
+        return ValidationResult("file_size", ValidationStatus.INVALID, "File does not exist.")
+
+    size_bytes = path.stat().st_size
 
     if size_bytes == 0:
         return ValidationResult("file_size", ValidationStatus.INVALID, "File is empty (0 bytes).", {"size_bytes": size_bytes})
@@ -98,14 +113,25 @@ def validate_audio_decoding(file_path):
     return result, y, sr
 
 
+def audio_duration(y, sr):
+    if sr in (None, 0):
+        return 0.0
+
+    frames = y.shape[-1] if y.ndim > 1 else len(y)
+    return frames / float(sr)
+
+
 def validate_duration(y, sr):
-    duration = librosa.get_duration(y=y, sr=sr)
+    duration = audio_duration(y, sr)
 
     if duration < MIN_DURATION_SECONDS:
         return ValidationResult("duration", ValidationStatus.INVALID, f"Audio too short ({duration:.3f}s).", {"duration_seconds": duration})
 
     if duration > MAX_DURATION_SECONDS:
-        return ValidationResult("duration", ValidationStatus.INVALID, f"Audio too long ({duration:.2f}s).", {"duration_seconds": duration})
+        return ValidationResult("duration", ValidationStatus.INVALID, f"Audio too long ({duration:.2f}s), the limit is {MAX_DURATION_SECONDS:.0f}s.", {"duration_seconds": duration})
+
+    if duration > LONG_DURATION_SECONDS:
+        return ValidationResult("duration", ValidationStatus.WARNING, f"Long recording ({duration:.2f}s), it will be split into segments.", {"duration_seconds": duration})
 
     return ValidationResult("duration", ValidationStatus.VALID, f"Duration OK ({duration:.2f}s).", {"duration_seconds": duration})
 
@@ -164,16 +190,11 @@ def validate_audio_file(file_path):
 
 
 if __name__ == "__main__":
-    import sys
-
     if len(sys.argv) != 2:
-        print("Usage: python validator.py <path_to_audio_file>")
+        print("Usage: python validation.py <path_to_audio_file>")
         sys.exit(1)
 
     report = validate_audio_file(sys.argv[1])
-    
-    
-    
 
     print(report.summary())
     print("-" * 50)
