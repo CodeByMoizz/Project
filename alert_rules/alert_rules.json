@@ -1,0 +1,146 @@
+{
+  "rules_version": "1.0",
+  "defaults": {
+    "min_confidence": 0.6,
+    "top_two_margin": 0.15,
+    "required_consecutive_detections": 1,
+    "require_model_agreement": false,
+    "minimum_quality": "Poor",
+    "severity": "Low",
+    "recommended_action": "Record the event and continue monitoring.",
+    "manual_review_on_disagreement": true,
+    "escalate_after_repeats": 0
+  },
+  "quality_order": ["Unusable", "Poor", "Acceptable", "Good"],
+  "severity_order": ["Informational", "Low", "Medium", "High", "Critical"],
+  "classes": {
+    "machinery_fault": {
+      "min_confidence": 0.65,
+      "top_two_margin": 0.15,
+      "required_consecutive_detections": 2,
+      "require_model_agreement": false,
+      "minimum_quality": "Acceptable",
+      "severity": "High",
+      "recommended_action": "Raise a maintenance ticket and inspect the machine.",
+      "manual_review_on_disagreement": true,
+      "escalate_after_repeats": 4
+    },
+    "glass_breaking": {
+      "min_confidence": 0.7,
+      "top_two_margin": 0.2,
+      "required_consecutive_detections": 1,
+      "require_model_agreement": true,
+      "minimum_quality": "Acceptable",
+      "severity": "High",
+      "recommended_action": "Send security to check the area for a break-in.",
+      "manual_review_on_disagreement": true,
+      "escalate_after_repeats": 2
+    },
+    "alarm_siren": {
+      "min_confidence": 0.65,
+      "top_two_margin": 0.15,
+      "required_consecutive_detections": 1,
+      "require_model_agreement": false,
+      "minimum_quality": "Poor",
+      "severity": "High",
+      "recommended_action": "Confirm which alarm is active and follow the site procedure.",
+      "manual_review_on_disagreement": true,
+      "escalate_after_repeats": 3
+    },
+    "vehicle_horn": {
+      "min_confidence": 0.6,
+      "top_two_margin": 0.12,
+      "required_consecutive_detections": 1,
+      "require_model_agreement": false,
+      "minimum_quality": "Poor",
+      "severity": "Low",
+      "recommended_action": "Store as a traffic or environmental sound event.",
+      "manual_review_on_disagreement": false,
+      "escalate_after_repeats": 0
+    },
+    "animal_sound": {
+      "min_confidence": 0.6,
+      "top_two_margin": 0.12,
+      "required_consecutive_detections": 1,
+      "require_model_agreement": false,
+      "minimum_quality": "Poor",
+      "severity": "Low",
+      "recommended_action": "Record as a non-critical context-dependent event.",
+      "manual_review_on_disagreement": false,
+      "escalate_after_repeats": 0
+    },
+    "gunshot": {
+      "min_confidence": 0.75,
+      "top_two_margin": 0.25,
+      "required_consecutive_detections": 2,
+      "require_model_agreement": true,
+      "minimum_quality": "Acceptable",
+      "severity": "Critical",
+      "recommended_action": "Escalate to security immediately and follow the emergency procedure.",
+      "manual_review_on_disagreement": true,
+      "escalate_after_repeats": 1,
+      "confusable_with": ["fireworks", "vehicle_backfire", "door_impact"]
+    },
+    "panic_scream": {
+      "min_confidence": 0.7,
+      "top_two_margin": 0.2,
+      "required_consecutive_detections": 1,
+      "require_model_agreement": true,
+      "minimum_quality": "Acceptable",
+      "severity": "Critical",
+      "recommended_action": "Dispatch help to the location and verify the situation.",
+      "manual_review_on_disagreement": true,
+      "escalate_after_repeats": 1,
+      "confusable_with": ["aggression", "animal_sound"]
+    },
+    "aggression": {
+      "min_confidence": 0.7,
+      "top_two_margin": 0.2,
+      "required_consecutive_detections": 2,
+      "require_model_agreement": false,
+      "minimum_quality": "Acceptable",
+      "severity": "High",
+      "severity_when_repeated": "Critical",
+      "recommended_action": "Alert security to a possible confrontation and monitor the area.",
+      "manual_review_on_disagreement": true,
+      "escalate_after_repeats": 3,
+      "confusable_with": ["panic_scream", "background_noise"]
+    },
+    "person_asking_help": {
+      "min_confidence": 0.7,
+      "top_two_margin": 0.2,
+      "required_consecutive_detections": 1,
+      "require_model_agreement": true,
+      "minimum_quality": "Acceptable",
+      "severity": "Critical",
+      "recommended_action": "Treat as a call for help and respond immediately.",
+      "manual_review_on_disagreement": true,
+      "escalate_after_repeats": 1,
+      "confusable_with": ["aggression", "panic_scream"]
+    },
+    "background_noise": {
+      "min_confidence": 0.5,
+      "top_two_margin": 0.1,
+      "required_consecutive_detections": 1,
+      "require_model_agreement": false,
+      "minimum_quality": "Unusable",
+      "severity": "Informational",
+      "recommended_action": "No action required.",
+      "manual_review_on_disagreement": false,
+      "escalate_after_repeats": 0,
+      "noise_level_alert": 0.5,
+      "severity_when_noisy": "Medium"
+    },
+    "unknown": {
+      "min_confidence": 1.01,
+      "top_two_margin": 1.01,
+      "required_consecutive_detections": 1,
+      "require_model_agreement": false,
+      "minimum_quality": "Unusable",
+      "severity": "Informational",
+      "recommended_action": "Send to manual review, the sound could not be identified reliably.",
+      "manual_review_on_disagreement": true,
+      "escalate_after_repeats": 0
+    }
+  }
+}
