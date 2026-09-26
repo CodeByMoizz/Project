@@ -1,279 +1,163 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+{% extends "base.html" %}
+{% set active_page = 'history' %}
 
-    <title>Event History - SonicSentinel AI</title>
+{% block content %}
 
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}"
-    />
-  </head>
+<section class="page-heading">
+    <div>
+        <p class="small-title">EVENT HISTORY</p>
+        <h1>Detected Sound Events</h1>
+        <p>{{ detections|length }} event(s) match the current filters.</p>
+    </div>
+</section>
 
-  <body>
-  <body>
-    <header class="navbar">
-      <div class="logo">SonicSentinel <span>AI</span></div>
-
-      <nav>
-        <a href="{{ url_for('dashboard') }}">Dashboard</a>
-        <a href="{{ url_for('event_history') }}" class="active">
-          Event History
-        </a>
-        <a href="{{ url_for('manual_review') }}"> Manual Review </a>
-        <a href="{{ url_for('reports') }}"> Reports </a>
-        <a href="{{ url_for('admin') }}"> Admin </a>
-      </nav>
-    </header>
-
-    <main class="container">
-      <section class="page-heading">
+<section class="card">
+    <div class="card-heading">
         <div>
-          <p class="small-title">SONICSENTINEL AI</p>
+            <h2>Search and Filter</h2>
+            <p>Narrow the event list</p>
+        </div>
+    </div>
 
-          <h1>Event History</h1>
+    <form method="GET" class="filter-form">
 
-          <p>Search and review previously detected sound events.</p>
+        <label>Audio ID
+            <input type="number" name="audio_id" value="{{ filters.audio_id or '' }}">
+        </label>
+
+        <label>Filename
+            <input type="text" name="filename" value="{{ filters.filename }}">
+        </label>
+
+        <label>Sound category
+            <select name="sound_class">
+                <option value="">Any</option>
+                {% for name in classes %}
+                <option value="{{ name }}" {% if filters.sound_class == name %}selected{% endif %}>
+                    {{ class_names[name] }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>From date
+            <input type="date" name="date_from" value="{{ filters.date_from }}">
+        </label>
+
+        <label>To date
+            <input type="date" name="date_to" value="{{ filters.date_to }}">
+        </label>
+
+        <label>Min confidence
+            <input type="number" name="min_confidence" step="0.05" min="0" max="1"
+                   value="{{ filters.min_confidence if filters.min_confidence is not none else '' }}">
+        </label>
+
+        <label>Max confidence
+            <input type="number" name="max_confidence" step="0.05" min="0" max="1"
+                   value="{{ filters.max_confidence if filters.max_confidence is not none else '' }}">
+        </label>
+
+        <label>Severity
+            <select name="severity">
+                <option value="">Any</option>
+                {% for name in severities %}
+                <option value="{{ name }}" {% if filters.severity == name %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>Quality
+            <select name="quality">
+                <option value="">Any</option>
+                {% for name in qualities %}
+                <option value="{{ name }}" {% if filters.quality == name %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>Review status
+            <select name="status">
+                <option value="">Any</option>
+                {% for name in statuses %}
+                <option value="{{ name }}" {% if filters.status == name %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>User ID
+            <input type="number" name="user_id" value="{{ filters.user_id or '' }}">
+        </label>
+
+        <div class="filter-buttons">
+            <button type="submit" class="main-button small-button">Apply Filters</button>
+            <a class="secondary-button" href="{{ url_for('event_history') }}">Clear</a>
+        </div>
+    </form>
+</section>
+
+<section class="card events-card">
+    <div class="card-heading">
+        <div>
+            <h2>Event Timeline</h2>
+            <p>Newest first</p>
         </div>
 
-        <div class="system-status">
-          <span></span>
-          System Ready
-        </div>
-      </section>
+        {% if user['role'] == 'admin' %}
+        <a class="view-link" href="{{ url_for('export_detections') }}">Export CSV</a>
+        {% endif %}
+    </div>
 
-      <!-- Filters -->
-
-      <section class="card">
-        <div class="card-heading">
-          <div>
-            <h2>Search Events</h2>
-
-            <p>Filter recorded sound detection events.</p>
-          </div>
-        </div>
-
-        <form method="GET">
-          <div class="result-grid">
-            <div class="result-item">
-              <p>Audio ID</p>
-
-              <input
-                type="text"
-                name="audio_id"
-                value="{{ request.args.get('audio_id', '') }}"
-                placeholder="Enter Audio ID"
-                style="
-                  width: 100%;
-                  padding: 10px;
-                  border: 1px solid #ccd5d9;
-                  border-radius: 6px;
-                "
-              />
-            </div>
-
-            <div class="result-item">
-              <p>Filename</p>
-
-              <input
-                type="text"
-                name="filename"
-                value="{{ request.args.get('filename', '') }}"
-                placeholder="audio.wav"
-                style="
-                  width: 100%;
-                  padding: 10px;
-                  border: 1px solid #ccd5d9;
-                  border-radius: 6px;
-                "
-              />
-            </div>
-
-            <div class="result-item">
-              <p>Category</p>
-
-              <select
-                name="category"
-                style="
-                  width: 100%;
-                  padding: 10px;
-                  border: 1px solid #ccd5d9;
-                  border-radius: 6px;
-                "
-              >
-                <option value="">All Categories</option>
-
-                <option>Machinery Fault</option>
-                <option>Glass Breaking</option>
-                <option>Alarm/Siren</option>
-                <option>Vehicle Horn</option>
-                <option>Animal Sound</option>
-                <option>Gunshot</option>
-                <option>Panic Scream</option>
-                <option>Aggression/Violent Conflict</option>
-                <option>Person Asking for Help</option>
-                <option>Background Noise</option>
-              </select>
-            </div>
-
-            <div class="result-item">
-              <p>Severity</p>
-
-              <select
-                name="severity"
-                style="
-                  width: 100%;
-                  padding: 10px;
-                  border: 1px solid #ccd5d9;
-                  border-radius: 6px;
-                "
-              >
-                <option value="">All Severities</option>
-                <option>Informational</option>
-                <option>Low</option>
-                <option>Medium</option>
-                <option>High</option>
-                <option>Critical</option>
-              </select>
-            </div>
-
-            <div class="result-item">
-              <p>Quality</p>
-
-              <select
-                name="quality"
-                style="
-                  width: 100%;
-                  padding: 10px;
-                  border: 1px solid #ccd5d9;
-                  border-radius: 6px;
-                "
-              >
-                <option value="">All Quality States</option>
-                <option>Good</option>
-                <option>Acceptable</option>
-                <option>Poor</option>
-                <option>Unusable</option>
-              </select>
-            </div>
-
-            <div class="result-item">
-              <p>Review Status</p>
-
-              <select
-                name="review_status"
-                style="
-                  width: 100%;
-                  padding: 10px;
-                  border: 1px solid #ccd5d9;
-                  border-radius: 6px;
-                "
-              >
-                <option value="">All Statuses</option>
-                <option>Uploaded</option>
-                <option>Classified</option>
-                <option>Uncertain</option>
-                <option>Alert Generated</option>
-                <option>Manual Review</option>
-                <option>Reviewed</option>
-                <option>Closed</option>
-              </select>
-            </div>
-          </div>
-
-          <div style="display: flex; gap: 10px; margin-top: 15px">
-            <button
-              type="submit"
-              class="main-button"
-              style="width: auto; padding-left: 25px; padding-right: 25px"
-            >
-              Search Events
-            </button>
-
-            <a
-              href="{{ url_for('event_history') }}"
-              class="secondary-button"
-              style="text-decoration: none; display: flex; align-items: center"
-            >
-              Clear Filters
-            </a>
-          </div>
-        </form>
-      </section>
-
-      <!-- Event Table -->
-
-      <section class="card events-card">
-        <div class="card-heading">
-          <div>
-            <h2>Detection Events</h2>
-
-            <p>Chronological history of detected sound events.</p>
-          </div>
-        </div>
-
-        <div class="table-wrapper">
-          <table>
+    <div class="table-wrapper">
+        <table>
             <thead>
-              <tr>
-                <th>Time</th>
-                <th>Audio ID</th>
-                <th>Filename</th>
-                <th>Event</th>
-                <th>Confidence</th>
-                <th>Severity</th>
-                <th>Quality</th>
-                <th>Status</th>
-              </tr>
+                <tr>
+                    <th>Time</th>
+                    <th>Audio ID</th>
+                    <th>File</th>
+                    <th>Seg</th>
+                    <th>Python</th>
+                    <th>GTM</th>
+                    <th>Agreement</th>
+                    <th>Final</th>
+                    <th>Quality</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
             </thead>
-
             <tbody>
-              {% for event in events %}
-
-              <tr>
-                <td>{{ event.time }}</td>
-
-                <td>{{ event.audio_id }}</td>
-
-                <td>{{ event.filename }}</td>
-
-                <td>{{ event.event }}</td>
-
-                <td>{{ event.confidence }}</td>
-
-                <td>
-                  <span class="{{ event.severity_class }}">
-                    {{ event.severity }}
-                  </span>
-                </td>
-
-                <td>{{ event.quality }}</td>
-
-                <td>{{ event.status }}</td>
-              </tr>
-
-              {% else %}
-
-              <tr>
-                <td
-                  colspan="8"
-                  style="text-align: center; padding: 30px; color: #7a848c"
-                >
-                  No events found.
-                </td>
-              </tr>
-
-              {% endfor %}
+                {% for row in detections %}
+                <tr>
+                    <td>{{ row['created_at'] }}</td>
+                    <td>{{ row['audio_id'] }}</td>
+                    <td>{{ row['filename'] or '—' }}</td>
+                    <td>{{ row['segment_index'] }}</td>
+                    <td>
+                        {{ display_name(row['python_class'] or 'unknown') }}
+                        {% if row['python_confidence'] is not none %}
+                            ({{ '%.0f'|format(row['python_confidence'] * 100) }}%)
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row['gtm_class'] %}
+                            {{ display_name(row['gtm_class']) }}
+                            ({{ '%.0f'|format(row['gtm_confidence'] * 100) }}%)
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>{{ row['agreement_status'] or '—' }}</td>
+                    <td>{{ display_name(row['final_class'] or 'unknown') }}</td>
+                    <td>{{ row['quality'] or '—' }}</td>
+                    <td><span class="severity-{{ (row['severity'] or 'low')|lower }}">{{ row['severity'] }}</span></td>
+                    <td>{{ row['status'] }}</td>
+                    <td><a href="{{ url_for('detection_detail', detection_id=row['detection_id']) }}">Open</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="12" class="muted">No events match these filters.</td></tr>
+                {% endfor %}
             </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
+        </table>
+    </div>
+</section>
 
-    <footer>
-      <p>SonicSentinel AI · AcousticX Intelligence</p>
-    </footer>
-  </body>
-</html>
+{% endblock %}

@@ -1,238 +1,137 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+{% extends "base.html" %}
+{% set active_page = 'review' %}
 
-    <title>Manual Review - SonicSentinel AI</title>
+{% block content %}
 
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}"
-    />
-  </head>
+<section class="page-heading">
+    <div>
+        <p class="small-title">MANUAL REVIEW</p>
+        <h1>Review Queue</h1>
+        <p>{{ queue|length }} event(s) need a human decision.</p>
+    </div>
+</section>
 
-  <body>
-    <header class="navbar">
-      <div class="logo">SonicSentinel <span>AI</span></div>
+{% if not queue %}
+<section class="card">
+    <div class="empty-result">
+        <div class="empty-icon">&#10003;</div>
+        <h3>The queue is empty</h3>
+        <p>No uncertain or conflicting events are waiting for review.</p>
+    </div>
+</section>
+{% endif %}
 
-      <nav>
-        <a href="{{ url_for('dashboard') }}"> Dashboard </a>
-
-        <a href="{{ url_for('event_history') }}"> Event History </a>
-
-        <a href="{{ url_for('manual_review') }}" class="active">
-          Manual Review
-        </a>
-
-        <a href="{{ url_for('reports') }}"> Reports </a>
-
-        <a href="{{ url_for('admin') }}"> Admin </a>
-      </nav>
-    </header>
-
-    <main class="container">
-      <section class="page-heading">
+{% for row in queue %}
+<section class="card review-card">
+    <div class="card-heading">
         <div>
-          <p class="small-title">SONICSENTINEL AI</p>
-
-          <h1>Manual Review</h1>
-
-          <p>Review uncertain and conflicting detection results.</p>
+            <h2>Event {{ row['detection_id'] }} — {{ display_name(row['final_class'] or 'unknown') }}</h2>
+            <p>{{ row['created_at'] }} · {{ row['filename'] or 'live window' }} · segment {{ row['segment_index'] }}</p>
         </div>
 
-        <div class="system-status">
-          <span></span>
+        <span class="status-badge">{{ row['status'] }}</span>
+    </div>
 
-          Review Queue Active
-        </div>
-      </section>
+    <div class="review-box">
+        <strong>Why it was routed here</strong>
+        <p>{{ row['manual_review_reason'] }}</p>
+    </div>
 
-      <!-- Review Queue -->
-
-      <section class="card">
-        <div class="card-heading">
-          <div>
-            <h2>Review Queue</h2>
-
-            <p>Events requiring human verification.</p>
-          </div>
-
-          <span class="status-badge">
-            {{ review_count|default(0) }} Pending
-          </span>
+    <div class="result-grid">
+        <div class="result-item">
+            <p>Python model</p>
+            <strong>
+                {{ display_name(row['python_class'] or 'unknown') }}
+                {% if row['python_confidence'] is not none %}
+                    ({{ '%.1f'|format(row['python_confidence'] * 100) }}%)
+                {% endif %}
+            </strong>
         </div>
 
-        {% for review in reviews %}
-
-        <div class="card" style="margin-bottom: 18px; background: #f8fafb">
-          <div class="card-heading">
-            <div>
-              <h2>{{ review.event }}</h2>
-
-              <p>Audio ID: {{ review.audio_id }}</p>
-            </div>
-
-            <span class="status-badge"> {{ review.reason }} </span>
-          </div>
-
-          <!-- Audio -->
-
-          <div class="audio-player">
-            <h3>Audio Recording</h3>
-
-            <audio controls style="width: 100%">
-              <source src="{{ review.audio_url }}" type="audio/mpeg" />
-
-              Your browser does not support audio.
-            </audio>
-          </div>
-
-          <!-- Model Results -->
-
-          <div class="result-grid" style="margin-top: 18px">
-            <div class="result-item">
-              <p>Python Model</p>
-
-              <strong> {{ review.python_prediction }} </strong>
-
-              <p style="margin-top: 8px">
-                Confidence: {{ review.python_confidence }}
-              </p>
-            </div>
-
-            <div class="result-item">
-              <p>GTM Model</p>
-
-              <strong> {{ review.gtm_prediction }} </strong>
-
-              <p style="margin-top: 8px">
-                Confidence: {{ review.gtm_confidence }}
-              </p>
-            </div>
-          </div>
-
-          <!-- Quality -->
-
-          <div class="action-box">
-            <p>Audio Quality</p>
-
-            <strong> {{ review.audio_quality }} </strong>
-          </div>
-
-          <!-- Review Form -->
-
-          <form
-            method="POST"
-            action="{{ url_for('manual_review') }}"
-            style="margin-top: 18px"
-          >
-            <input
-              type="hidden"
-              name="audio_id"
-              value="{{ review.audio_id }}"
-            />
-
-            <div class="result-item">
-              <p>Reviewer Decision</p>
-
-              <select
-                name="decision"
-                required
-                style="
-                  width: 100%;
-                  padding: 10px;
-                  border: 1px solid #ccd5d9;
-                  border-radius: 6px;
-                "
-              >
-                <option value="">Select decision</option>
-
-                <option value="confirm">Confirm Model Result</option>
-
-                <option value="correct">Correct Classification</option>
-
-                <option value="false_alarm">Mark as False Alarm</option>
-              </select>
-            </div>
-
-            <div class="result-item" style="margin-top: 12px">
-              <p>Corrected Category</p>
-
-              <select
-                name="corrected_category"
-                style="
-                  width: 100%;
-                  padding: 10px;
-                  border: 1px solid #ccd5d9;
-                  border-radius: 6px;
-                "
-              >
-                <option value="">Select category</option>
-
-                <option>Machinery Fault</option>
-                <option>Glass Breaking</option>
-                <option>Alarm/Siren</option>
-                <option>Vehicle Horn</option>
-                <option>Animal Sound</option>
-                <option>Gunshot</option>
-                <option>Panic Scream</option>
-                <option>Aggression/Violent Conflict</option>
-                <option>Person Asking for Help</option>
-                <option>Background Noise</option>
-              </select>
-            </div>
-
-            <div class="result-item" style="margin-top: 12px">
-              <p>Reviewer Comments</p>
-
-              <textarea
-                name="comments"
-                rows="4"
-                placeholder="Enter review comments..."
-                style="
-                  width: 100%;
-                  padding: 10px;
-                  border: 1px solid #ccd5d9;
-                  border-radius: 6px;
-                  resize: vertical;
-                "
-              ></textarea>
-            </div>
-
-            <div class="alert-buttons" style="margin-top: 5px">
-              <button type="submit" class="main-button" style="width: auto">
-                Submit Review
-              </button>
-
-              <button
-                type="submit"
-                name="action"
-                value="close"
-                class="secondary-button"
-              >
-                Close Event
-              </button>
-            </div>
-          </form>
+        <div class="result-item">
+            <p>Teachable Machine</p>
+            <strong>
+                {% if row['gtm_class'] %}
+                    {{ display_name(row['gtm_class']) }} ({{ '%.1f'|format(row['gtm_confidence'] * 100) }}%)
+                {% else %}Not received{% endif %}
+            </strong>
         </div>
 
-        {% else %}
-
-        <div class="empty-result">
-          <div class="empty-icon">✓</div>
-
-          <h3>No Pending Reviews</h3>
-
-          <p>There are currently no events requiring manual review.</p>
+        <div class="result-item">
+            <p>Agreement</p>
+            <strong>{{ row['agreement_status'] or '—' }}</strong>
         </div>
 
-        {% endfor %}
-      </section>
-    </main>
+        <div class="result-item">
+            <p>Audio quality</p>
+            <strong>{{ row['quality'] }}</strong>
+        </div>
 
-    <footer>
-      <p>SonicSentinel AI · AcousticX Intelligence</p>
-    </footer>
-  </body>
-</html>
+        <div class="result-item">
+            <p>Severity</p>
+            <strong class="severity-{{ (row['severity'] or 'low')|lower }}">{{ row['severity'] }}</strong>
+        </div>
+
+        <div class="result-item">
+            <p>Top-two margin</p>
+            <strong>
+                {% if row['top_two_margin'] is not none %}{{ '%.3f'|format(row['top_two_margin']) }}{% else %}—{% endif %}
+            </strong>
+        </div>
+    </div>
+
+    <div class="audio-player">
+        <h3>Listen to the segment</h3>
+        <audio controls src="{{ url_for('audio_file', audio_id=row['audio_id']) }}">
+            Your browser does not support audio playback.
+        </audio>
+    </div>
+
+    {% if user['role'] in ['reviewer', 'admin', 'operator'] %}
+    <form method="POST" class="review-form">
+        <input type="hidden" name="detection_id" value="{{ row['detection_id'] }}">
+
+        <label>Decision
+            <select name="decision" required>
+                <option value="confirmed">Confirm the detected class</option>
+                <option value="corrected">Correct the class</option>
+                <option value="false_alarm">Mark as a false alarm</option>
+            </select>
+        </label>
+
+        <label>Corrected class (only for a correction)
+            <select name="corrected_class">
+                <option value="">—</option>
+                {% for name in classes %}
+                <option value="{{ name }}">{{ class_names[name] }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>Comments
+            <input type="text" name="comments" placeholder="What did you hear?">
+        </label>
+
+        <label>Recommended action
+            <input type="text" name="recommended_action" placeholder="What should happen next?">
+        </label>
+
+        <div class="filter-buttons">
+            <button type="submit" class="main-button small-button">Save Decision</button>
+            <a class="secondary-button" href="{{ url_for('detection_detail', detection_id=row['detection_id']) }}">
+                Full Report
+            </a>
+        </div>
+
+        <p class="muted">
+            The original model predictions and confidence scores are always kept, a decision
+            here is recorded alongside them.
+        </p>
+    </form>
+    {% else %}
+    <p class="muted">Your role can view this queue but not record a decision.</p>
+    {% endif %}
+</section>
+{% endfor %}
+
+{% endblock %}

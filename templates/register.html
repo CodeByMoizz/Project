@@ -1,149 +1,41 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Register - SonicSentinel AI</title>
+{% extends "base.html" %}
+{% set active_page = 'register' %}
 
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}"
-    />
-  </head>
+{% block content %}
 
-  <body>
-    <nav class="navbar">
-      <div class="navbar-container">
-        <div class="logo">SonicSentinel AI</div>
-      </div>
-    </nav>
+<section class="auth-card card">
+    <h1>Create an account</h1>
+    <p class="muted">The first account created becomes the administrator.</p>
 
-    <main class="container">
-      <div class="page-heading">
-        <h1>Create Account</h1>
-        <p>Register to access SonicSentinel AI.</p>
-      </div>
+    <form method="POST">
+        <label>Username
+            <input type="text" name="username" required minlength="3">
+        </label>
 
-      <div class="card" style="max-width: 500px; margin: 30px auto">
-        <div class="card-heading">
-          <h2>Registration</h2>
-        </div>
+        <label>Full name
+            <input type="text" name="full_name">
+        </label>
 
-        {% if error_message %}
-        <div class="error-box">{{ error_message }}</div>
-        {% endif %}
+        <label>Email
+            <input type="email" name="email">
+        </label>
 
-        <form method="POST" action="{{ url_for('register') }}">
-          <div style="margin-bottom: 18px">
-            <label for="name">Full Name</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              placeholder="Enter your full name"
-              required
-              style="
-                width: 100%;
-                padding: 12px;
-                margin-top: 6px;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-              "
-            />
-          </div>
+        <label>Password
+            <input type="password" name="password" required minlength="6">
+        </label>
 
-          <div style="margin-bottom: 18px">
-            <label for="email">Email Address</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              placeholder="Enter your email"
-              required
-              style="
-                width: 100%;
-                padding: 12px;
-                margin-top: 6px;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-              "
-            />
-          </div>
-
-          <div style="margin-bottom: 18px">
-            <label for="role">Role</label>
-            <select
-              id="role"
-              name="role"
-              required
-              style="
-                width: 100%;
-                padding: 12px;
-                margin-top: 6px;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-              "
-            >
-              <option value="">Select Role</option>
-              <option value="analyst">Analyst</option>
-              <option value="reviewer">Reviewer</option>
-              <option value="security_personnel">Security Personnel</option>
-              <option value="maintenance_personnel">
-                Maintenance Personnel
-              </option>
+        <label>Role
+            <select name="role">
+                {% for role in roles %}
+                <option value="{{ role }}">{{ role }}</option>
+                {% endfor %}
             </select>
-          </div>
+        </label>
 
-          <div style="margin-bottom: 18px">
-            <label for="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              placeholder="Create a password"
-              required
-              style="
-                width: 100%;
-                padding: 12px;
-                margin-top: 6px;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-              "
-            />
-          </div>
+        <button type="submit" class="main-button">Register</button>
+    </form>
 
-          <div style="margin-bottom: 20px">
-            <label for="confirm_password">Confirm Password</label>
-            <input
-              type="password"
-              id="confirm_password"
-              name="confirm_password"
-              placeholder="Confirm your password"
-              required
-              style="
-                width: 100%;
-                padding: 12px;
-                margin-top: 6px;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-              "
-            />
-          </div>
+    <p class="muted">Already registered? <a href="{{ url_for('login') }}">Sign in</a>.</p>
+</section>
 
-          <button type="submit" class="primary-btn">Create Account</button>
-        </form>
-
-        <div style="margin-top: 20px; text-align: center">
-          <p>
-            Already have an account?
-            <a href="{{ url_for('login') }}"> Login </a>
-          </p>
-        </div>
-      </div>
-    </main>
-
-    <footer class="footer">
-      <p>SonicSentinel AI</p>
-    </footer>
-  </body>
-</html>
+{% endblock %}

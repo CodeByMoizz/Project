@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% set active_page = 'history' %}
+
+{% block content %}
+
+{% if not detection %}
+<section class="page-heading">
+    <div>
+        <h1>Event not found</h1>
+        <p><a href="{{ url_for('event_history') }}">Back to event history</a></p>
+    </div>
+</section>
+{% else %}
+
+<section class="page-heading">
+    <div>
+        <p class="small-title">ANALYSIS REPORT</p>
+        <h1>Event {{ detection.detection_id }} — {{ display_name(detection.final_class or 'unknown') }}</h1>
+        <p>{{ detection.created_at }} · audio ID {{ detection.audio_id }} · segment {{ detection.segment_index }}</p>
+    </div>
+
+    <div class="system-status">
+        <span></span>
+        {{ detection.status }}
+    </div>
+</section>
+
+<div class="print-button-row">
+    <button type="button" class="secondary-button" onclick="window.print()">Download / Print Report</button>
+</div>
+
+<section class="main-grid">
+
+    <div class="card">
+        <div class="card-heading">
+            <div>
+                <h2>Audio Metadata</h2>
+                <p>As recorded at upload</p>
+            </div>
+        </div>
+
+        <div class="metric-row"><span>Filename</span><strong>{{ detection.filename or '—' }}</strong></div>
+        <div class="metric-row"><span>Format</span><strong>{{ detection.audio_format or '—' }}</strong></div>
+        <div class="metric-row"><span>Duration</span><strong>{{ detection.duration_sec }} s</strong></div>
+        <div class="metric-row"><span>Sampling rate</span><strong>{{ detection.sample_rate }} Hz</strong></div>
+        <div class="metric-row"><span>Channels</span><strong>{{ detection.channels }}</strong></div>
+        <div class="metric-row"><span>File size</span><strong>{{ ((detection.file_size or 0) / 1024)|round(1) }} KB</strong></div>
+        <div class="metric-row"><span>Source</span><strong>{{ detection.source_kind }}</strong></div>
+        <div class="metric-row"><span>Uploaded</span><strong>{{ detection.uploaded_at }}</strong></div>
+        <div class="metric-row">
+            <span>Segment window</span>
+            <strong>
+                {% if detection.start_sec is not none %}
+                    {{ '%.2f'|format(detection.start_sec) }}s – {{ '%.2f'|format(detection.end_sec) }}s
+                {% else %}—{% endif %}
+            </strong>
+        </div>
+
+        <div class="audio-player">
+            <h3>Reviewer Playback</h3>
+            <audio controls src="{{ url_for('audio_file', audio_id=detection.audio_id) }}">
+                Your browser does not support audio playback.
+            </audio>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-heading">
+            <div>
+                <h2>Final Sound Event Decision</h2>
+                <p>Both models plus the alert rules</p>
+            </div>
+        </div>
+
+        <div class="metric-row"><span>Detected category</span><strong>{{ display_name(detection.final_class or 'unknown') }}</strong></div>
+        <div class="metric-row"><span>Model agreement</span><strong>{{ detection.agreement_status or '—' }}</strong></div>
+        <div class="metric-row"><span>Confidence level</span><strong>{{ detection.confidence_level or '—' }}</strong></div>
+        <div class="metric-row">
+            <span>Event severity</span>
+            <strong class="severity-{{ (detection.severity or 'low')|lower }}">{{ detection.severity }}</strong>
+        </div>
+        <div class="metric-row"><span>Alert status</span><strong>{{ detection.alert_status }}</strong></div>
+        <div class="metric-row"><span>Manual review</span><strong>{{ 'Required' if detection.manual_review_required else 'Not required' }}</strong></div>
+        <div class="metric-row"><span>Audio quality</span><strong>{{ detection.quality }}</strong></div>
+        <div class="metric-row"><span>Noise level</span><strong>{{ detection.noise_level }}</strong></div>
+
+        <div class="action-box">
+            <p>Recommended Action</p>
+            <strong>{{ detection.recommended_action }}</strong>
+        </div>
+
+        {% if detection.manual_review_reason %}
+        <div class="review-box">
+            <strong>Why this needs review</strong>
+            <p>{{ detection.manual_review_reason }}</p>
+        </div>
+        {% endif %}
+
+        {% if detection.reviewer_decision %}
+        <div class="success-box">
+            Reviewer decision: {{ detection.reviewer_decision }}
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<section class="card">
+    <div class="card-heading">
+        <div>
+            <h2>Model Comparison</h2>
+            <p>The two models classified this segment independently</p>
+        </div>
+    </div>
+
+    <div class="compare-grid">
+        <div>
+            <h3>Python model <span class="muted">({{ detection.python_model_version or '—' }})</span></h3>
+            <table class="score-table">
+                <tbody>
+                    {% for name, value in ranked_scores(detection.python_scores) %}
+                    <tr>
+                        <td>{{ display_name(name) }}</td>
+                        <td>{{ '%.2f'|format(value * 100) }}%</td>
+                    </tr>
+                    {% else %}
+                    <tr><td class="muted" colspan="2">No Python scores stored.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div>
+            <h3>Teachable Machine <span class="muted">({{ detection.gtm_model_version or 'not received' }})</span></h3>
+            <table class="score-table">
+                <tbody>
+                    {% for name, value in ranked_scores(detection.gtm_scores) %}
+                    <tr>
+                        <td>{{ display_name(name) }}</td>
+                        <td>{{ '%.2f'|format(value * 100) }}%</td>
+                    </tr>
+                    {% else %}
+                    <tr><td class="muted" colspan="2">No GTM scores received for this segment.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="metric-row">
+        <span>Predicted-class match</span>
+        <strong>
+            {% if detection.gtm_class %}
+                {{ 'Match' if detection.python_class == detection.gtm_class else 'Different' }}
+            {% else %}—{% endif %}
+        </strong>
+    </div>
+
+    <div class="metric-row">
+        <span>Top-class confidence difference</span>
+        <strong>
+            {% if detection.confidence_difference is not none %}
+                {{ '%.4f'|format(detection.confidence_difference) }}
+            {% else %}—{% endif %}
+        </strong>
+    </div>
+
+    <div class="metric-row">
+        <span>Top-two confidence margin</span>
+        <strong>
+            {% if detection.top_two_margin is not none %}
+                {{ '%.4f'|format(detection.top_two_margin) }}
+            {% else %}—{% endif %}
+        </strong>
+    </div>
+
+    {% if detection.overlapping_classes and detection.overlapping_classes|length > 1 %}
+    <div class="review-box">
+        <strong>Possible overlapping sounds</strong>
+        <p>{% for name in detection.overlapping_classes %}{{ display_name(name) }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+    </div>
+    {% endif %}
+</section>
+
+<section class="card signal-card">
+    <div class="card-heading">
+        <div>
+            <h2>Waveform and Spectrogram</h2>
+            <p>Generated from the preprocessed segment</p>
+        </div>
+
+        <span class="quality-badge">Audio Quality: {{ detection.quality }}</span>
+    </div>
+
+    <p class="muted">{{ detection.quality_notes }}</p>
+
+    <div class="signal-grid">
+        <div class="signal-box">
+            <h3>Waveform</h3>
+            {% if detection.waveform_path %}
+            <img class="signal-image" src="{{ url_for('static', filename=detection.waveform_path) }}" alt="Waveform">
+            {% else %}
+            <p class="muted">No waveform was saved for this segment.</p>
+            {% endif %}
+        </div>
+
+        <div class="signal-box">
+            <h3>Mel Spectrogram</h3>
+            {% if detection.spectrogram_path %}
+            <img class="signal-image" src="{{ url_for('static', filename=detection.spectrogram_path) }}" alt="Spectrogram">
+            {% else %}
+            <p class="muted">No spectrogram was saved for this segment.</p>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<section class="card">
+    <div class="card-heading">
+        <div>
+            <h2>Review History</h2>
+            <p>Reviewer decisions and comments</p>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Reviewer</th>
+                    <th>Decision</th>
+                    <th>Corrected class</th>
+                    <th>Comments</th>
+                    <th>Recommended action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for review in reviews %}
+                <tr>
+                    <td>{{ review['created_at'] }}</td>
+                    <td>{{ review['username'] or '—' }}</td>
+                    <td>{{ review['decision'] }}</td>
+                    <td>{{ display_name(review['corrected_class']) if review['corrected_class'] else '—' }}</td>
+                    <td>{{ review['comments'] or '—' }}</td>
+                    <td>{{ review['recommended_action'] or '—' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="muted">This event has not been reviewed.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% endif %}
+
+{% endblock %}

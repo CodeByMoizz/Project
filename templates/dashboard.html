@@ -1,1058 +1,421 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% extends "base.html" %}
+{% set active_page = 'dashboard' %}
 
-    <title>SonicSentinel AI - Dashboard</title>
+{% block content %}
 
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='style.css') }}">
-<base target="_blank">
-</head>
+<section class="page-heading">
+    <div>
+        <p class="small-title">SONICSENTINEL AI</p>
+        <h1>Sound Event Detection</h1>
+        <p>Upload a recording to analyse it with both models.</p>
+    </div>
 
-<body>
+    <div class="system-status">
+        <span></span>
+        {% if model_status.available %}Model Ready{% else %}Model Missing{% endif %}
+    </div>
+</section>
 
-<header class="navbar">
-      <div class="logo">SonicSentinel <span>AI</span></div>
+{% if batch_summary %}
+<div class="success-box">{{ batch_summary }}</div>
+{% endif %}
 
-      <nav>
-        <a href="{{ url_for('dashboard') }}" class="active">Dashboard</a>
-        <a href="{{ url_for('event_history') }}">
-          Event History
-        </a>
-        <a href="{{ url_for('manual_review') }}"> Manual Review </a>
-        <a href="{{ url_for('reports') }}"> Reports </a>
-        <a href="{{ url_for('admin') }}"> Admin </a>
-      </nav>
-    </header>
+<section class="main-grid">
 
-<main class="container">
-
-    <section class="page-heading">
-
-        <div>
-            <div class="small-title">REAL-TIME AUDIO INTELLIGENCE</div>
-
-            <h1>Sound Event Detection</h1>
-
-            <p>
-                Monitor, analyze and compare detected sound events
-                using independent AI models.
-            </p>
+    <div class="card input-card">
+        <div class="card-heading">
+            <div>
+                <h2>Audio Input</h2>
+                <p>WAV, MP3, FLAC, OGG or M4A. Select several files for a batch.</p>
+            </div>
         </div>
 
-        <div class="system-status">
-            <span></span>
-            System Ready &nbsp;·&nbsp; Awaiting audio input
+        <form method="POST" enctype="multipart/form-data">
+
+            <label class="upload-box">
+                <div class="upload-icon">&uarr;</div>
+                <h3>Upload Audio</h3>
+                <p>Choose one or more audio files</p>
+
+                <input type="file" name="audio" id="audioInput" accept=".wav,.mp3,.flac,.ogg,.m4a" multiple>
+
+                <span class="choose-button">Choose Audio</span>
+            </label>
+
+            <p class="file-chosen" id="fileChosen">No file chosen yet.</p>
+
+            <button type="submit" class="main-button">Analyze Audio</button>
+        </form>
+
+        <div class="audio-player">
+            <h3>Audio Preview</h3>
+            <audio id="audioPreview" controls>
+                Your browser does not support audio playback.
+            </audio>
         </div>
 
-    </section>
-
-
-    <section class="main-grid">
-
-        <div class="card">
-
-            <div class="card-heading">
-                <div>
-                    <span class="small-title">AUDIO ANALYSIS</span>
-                    <h2>Audio Input</h2>
-                    <p>Upload an audio recording for sound-event analysis.</p>
-                </div>
-
-                <div class="empty-icon">♪</div>
+        <div class="live-box">
+            <div>
+                <h3>Live Monitoring</h3>
+                <p>Monitor the microphone in {{ segment_duration }}-second windows.</p>
             </div>
 
-            <form
-                action="{{ url_for('dashboard') }}"
-                method="POST"
-                enctype="multipart/form-data"
-            >
-
-                <label class="upload-box" for="audioInput">
-
-                    <div class="upload-icon">↑</div>
-
-                    <h3>Choose an audio file</h3>
-
-                    <p>
-                        WAV, MP3, FLAC, OGG or M4A
-                    </p>
-
-                    <span class="choose-button">Select file</span>
-
-                    <input
-                        type="file"
-                        id="audioInput"
-                        name="audio"
-                        accept="audio/*"
-                        required
-                    >
-
-                </label>
-
-                {% if error_message %}
-                    <div class="error-box">
-                        {{ error_message }}
-                    </div>
-                {% endif %}
-
-                <div class="alert-buttons">
-
-                    <button
-                        type="submit"
-                        class="main-button"
-                    >
-                        Analyze Audio
-                    </button>
-
-                    <button
-                        type="button"
-                        class="secondary-button"
-                        id="monitorButton"
-                    >
-                        Start Monitoring
-                    </button>
-
-                </div>
-
-            </form>
-
+            <a class="secondary-button" href="{{ url_for('live') }}">Open Live Monitor</a>
         </div>
+    </div>
 
-
-        <div class="card">
-
-            <div class="card-heading">
-
-                <div>
-                    <span class="small-title">SELECTED RECORDING</span>
-                    <h2>Audio Preview</h2>
-                    <p>Review the selected recording before analysis.</p>
-                </div>
-
-                <div class="empty-icon">♫</div>
-
-            </div>
-
-            <div class="audio-player">
-
-                <h3>Selected file</h3>
-
-                <audio
-                    id="audioPreview"
-                    controls
-                    preload="metadata"
-                >
-                    Your browser does not support audio playback.
-                </audio>
-
-            </div>
-
-            <div class="alert-status" style="margin-top: 15px;">
-
-                <div class="empty-icon">♪</div>
-
-                <div>
-                    <strong id="previewTitle">
-                        No audio selected
-                    </strong>
-
-                    <p id="previewMessage">
-                        Select an audio file to preview it.
-                    </p>
-                </div>
-
-            </div>
-
-        </div>
-
-    </section>
-
-
-    <section class="card" style="margin-top: 22px;">
+    <div class="card detection-card">
 
         <div class="card-heading">
-
             <div>
-                <span class="small-title">LATEST RESULT</span>
                 <h2>Current Detection</h2>
-                <p>
-                    Final result generated from the analyzed audio.
-                </p>
+                <p>Result of the most recent analysis</p>
             </div>
 
             <span class="status-badge">
-                {% if result %}
-                    {{ result.status | default("Detected") }}
-                {% else %}
-                    Awaiting Analysis
-                {% endif %}
+                {% if result %}{{ result.status }}{% else %}Waiting{% endif %}
             </span>
-
         </div>
 
         {% if result %}
 
-            <div class="detected-event">
+        <div class="detected-event">
+            <p>Detected Sound</p>
+            <h2>{{ result.final_class_name }}</h2>
+            {% if result.final_class != result.detected_class %}
+            <p class="muted">Python model said {{ result.detected_class_name }}.</p>
+            {% endif %}
+        </div>
 
-                <p>DETECTED SOUND</p>
-
-                <h2>
-                    {{ result.detected_sound | default("Unknown") }}
-                </h2>
-
-                <p>
-                    Classification generated from the analyzed recording.
-                </p>
-
+        <div class="result-grid">
+            <div class="result-item">
+                <p>Confidence</p>
+                <strong>{{ '%.1f'|format(result.python_confidence * 100) }}% ({{ result.confidence_level }})</strong>
             </div>
 
-            <div class="result-grid">
-
-                <div class="result-item">
-                    <p>Confidence</p>
-                    <strong>
-                        {{ result.confidence | default("N/A") }}
-                    </strong>
-                </div>
-
-                <div class="result-item">
-                    <p>Severity</p>
-                    <strong>
-                        {{ result.severity | default("N/A") }}
-                    </strong>
-                </div>
-
-                <div class="result-item">
-                    <p>Alert Status</p>
-                    <strong>
-                        {{ result.alert_status | default("No Active Alert") }}
-                    </strong>
-                </div>
-
-                <div class="result-item">
-                    <p>Model Agreement</p>
-                    <strong>
-                        {{ result.model_agreement | default("N/A") }}
-                    </strong>
-                </div>
-
+            <div class="result-item">
+                <p>Severity</p>
+                <strong class="severity-{{ result.severity|lower }}">{{ result.severity }}</strong>
             </div>
 
-            <div class="action-box">
+            <div class="result-item">
+                <p>Audio Quality</p>
+                <strong>{{ result.quality }}</strong>
+            </div>
 
-                <p>MANUAL REVIEW</p>
+            <div class="result-item">
+                <p>Alert Status</p>
+                <strong>{{ result.alert_status }}</strong>
+            </div>
+        </div>
 
+        <div class="model-compare">
+            <h3>Model Comparison</h3>
+
+            <div class="compare-grid">
+                <div>
+                    <p class="muted">Python model</p>
+                    <ol class="score-list">
+                        {% for name, value in result.python_top3 %}
+                        <li><span>{{ display_name(name) }}</span><strong>{{ '%.1f'|format(value * 100) }}%</strong></li>
+                        {% endfor %}
+                    </ol>
+                </div>
+
+                <div>
+                    <p class="muted">Teachable Machine</p>
+                    {% if result.gtm_available %}
+                    <ol class="score-list">
+                        {% for name, value in result.gtm_top3 %}
+                        <li><span>{{ display_name(name) }}</span><strong>{{ '%.1f'|format(value * 100) }}%</strong></li>
+                        {% endfor %}
+                    </ol>
+                    {% else %}
+                    <p class="muted">
+                        Not received. The GTM model runs in the browser on the Live Monitor page.
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="metric-row">
+                <span>Agreement</span>
+                <strong>{{ result.agreement_status }}</strong>
+            </div>
+
+            <div class="metric-row">
+                <span>Top-class confidence difference</span>
                 <strong>
-                    {{ result.manual_review | default("Not Required") }}
+                    {% if result.confidence_difference is not none %}
+                        {{ '%.3f'|format(result.confidence_difference) }}
+                    {% else %}—{% endif %}
                 </strong>
-
-                <p style="margin-top: 10px;">RECOMMENDED ACTION</p>
-
-                <strong>
-                    {{ result.recommended_action | default("No action required.") }}
-                </strong>
-
             </div>
 
-            <div class="alert-buttons">
-
-                <button
-                    type="button"
-                    class="secondary-button"
-                    id="acknowledgeButton"
-                >
-                    Acknowledge Alert
-                </button>
-
-                <a
-                    href="{{ url_for('manual_review') }}"
-                    class="secondary-button"
-                >
-                    Review Event
-                </a>
-
+            <div class="metric-row">
+                <span>Top-two margin</span>
+                <strong>{{ '%.3f'|format(result.top_two_margin) }}</strong>
             </div>
+
+            <div class="metric-row">
+                <span>Repeated detections in window</span>
+                <strong>{{ result.repeat_count }}</strong>
+            </div>
+        </div>
+
+        <div class="action-box">
+            <p>Recommended Action</p>
+            <strong>{{ result.recommended_action }}</strong>
+        </div>
+
+        {% if result.manual_review_required %}
+        <div class="review-box">
+            <strong>Manual review required.</strong>
+            <p>{{ result.manual_review_reason }}</p>
+        </div>
+        {% endif %}
+
+        {% if result.overlapping_classes|length > 1 %}
+        <div class="review-box">
+            <strong>Possible overlapping sounds:</strong>
+            <p>{% for name in result.overlapping_classes %}{{ display_name(name) }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+        </div>
+        {% endif %}
+
+        <div class="alert-buttons">
+            <a class="main-button small-button" href="{{ url_for('detection_detail', detection_id=result.detection_id) }}">
+                Full Report
+            </a>
+
+            <a class="secondary-button" href="{{ url_for('manual_review') }}">Review Queue</a>
+        </div>
 
         {% else %}
 
-            <div class="empty-result">
-
-                <div class="empty-icon">⌁</div>
-
-                <div>
-                    <h3>No detection available</h3>
-
-                    <p>
-                        Upload an audio recording or start monitoring
-                        to generate a sound-event prediction.
-                    </p>
-                </div>
-
-                <span class="status-badge" style="margin-top: 10px; display: inline-block;">
-                    Waiting for audio
-                </span>
-
-            </div>
+        <div class="empty-result">
+            <div class="empty-icon">&#9834;</div>
+            <h3>No Detection Yet</h3>
+            <p>Upload an audio file to see the detection result.</p>
+        </div>
 
         {% endif %}
+    </div>
+</section>
 
-    </section>
+{% if result %}
+<section class="card signal-card">
+    <div class="card-heading">
+        <div>
+            <h2>Audio Analysis</h2>
+            <p>{{ result.metadata.filename }} · {{ result.metadata.duration_sec }}s ·
+               {{ result.metadata.sample_rate }} Hz · {{ result.metadata.channels }} channel(s) ·
+               {{ (result.metadata.file_size / 1024)|round(1) }} KB</p>
+        </div>
 
+        <span class="quality-badge">Audio Quality: {{ result.quality }}</span>
+    </div>
 
-    <section class="card" style="margin-top: 22px;">
+    <p class="muted">{{ result.quality_notes }}</p>
 
+    {% if result.duplicate_of %}
+    <div class="notice-box">
+        This is an exact duplicate of audio ID {{ result.duplicate_of }}.
+    </div>
+    {% elif result.near_duplicate_of %}
+    <div class="notice-box">
+        This looks like a re-encoded or trimmed copy of audio ID {{ result.near_duplicate_of }}.
+    </div>
+    {% endif %}
+
+    <div class="signal-grid">
+        <div class="signal-box">
+            <h3>Waveform</h3>
+            {% if result.waveform_path %}
+            <img class="signal-image" src="{{ url_for('static', filename=result.waveform_path) }}" alt="Waveform">
+            {% else %}
+            <p class="muted">The waveform could not be generated for this segment.</p>
+            {% endif %}
+        </div>
+
+        <div class="signal-box">
+            <h3>Mel Spectrogram</h3>
+            {% if result.spectrogram_path %}
+            <img class="signal-image" src="{{ url_for('static', filename=result.spectrogram_path) }}" alt="Spectrogram">
+            {% else %}
+            <p class="muted">The spectrogram could not be generated for this segment.</p>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{% if results|length > 1 %}
+<section class="card events-card">
+    <div class="card-heading">
+        <div>
+            <h2>All Analysed Segments</h2>
+            <p>{{ results|length }} segment(s) from this upload</p>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Segment</th>
+                    <th>Time</th>
+                    <th>Detected</th>
+                    <th>Confidence</th>
+                    <th>Quality</th>
+                    <th>Severity</th>
+                    <th>Alert</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in results %}
+                <tr>
+                    <td>{{ item.segment_index }}</td>
+                    <td>
+                        {% if item.start_sec is not none %}{{ '%.1f'|format(item.start_sec) }}s{% else %}—{% endif %}
+                    </td>
+                    <td>{{ item.final_class_name }}</td>
+                    <td>{{ '%.1f'|format(item.python_confidence * 100) }}%</td>
+                    <td>{{ item.quality }}</td>
+                    <td><span class="severity-{{ item.severity|lower }}">{{ item.severity }}</span></td>
+                    <td>{{ item.alert_status }}</td>
+                    <td><a href="{{ url_for('detection_detail', detection_id=item.detection_id) }}">Open</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<section class="bottom-grid">
+
+    <div class="card alert-card">
         <div class="card-heading">
-
             <div>
-                <span class="small-title">AI MODEL ANALYSIS</span>
-                <h2>Model Comparison</h2>
-                <p>
-                    Compare independently generated Python and
-                    Google Teachable Machine predictions.
-                </p>
-            </div>
-
-            <span class="status-badge">
-                {% if result and result.model_agreement %}
-                    {{ result.model_agreement }}
-                {% else %}
-                    Awaiting Results
-                {% endif %}
-            </span>
-
-        </div>
-
-
-        <div class="main-grid">
-
-
-            <div class="card">
-
-                <div class="card-heading" style="margin-bottom: 14px;">
-
-                    <div class="empty-icon">PY</div>
-
-                    <div>
-                        <h3>Python Model</h3>
-                        <p>Primary classification model</p>
-                    </div>
-
-                </div>
-
-                <div class="result-item" style="margin-bottom: 12px;">
-
-                    <p>TOP PREDICTION</p>
-
-                    <strong>
-                        {% if result and result.python_prediction %}
-                            {{ result.python_prediction }}
-                        {% else %}
-                            Waiting for analysis
-                        {% endif %}
-                    </strong>
-
-                </div>
-
-                <div class="metric-row">
-
-                    <span>Top Confidence</span>
-
-                    <strong>
-                        {% if result and result.python_confidence %}
-                            {{ result.python_confidence }}
-                        {% else %}
-                            —
-                        {% endif %}
-                    </strong>
-
-                </div>
-
-                <div>
-
-                    <p class="small-title" style="margin: 12px 0 6px;">
-                        Top 3 Predictions
-                    </p>
-
-                    {% if result and result.python_top_predictions %}
-
-                        {% for prediction in result.python_top_predictions %}
-
-                            <div class="metric-row">
-
-                                <span>
-                                    {{ loop.index }}. {{ prediction.category }}
-                                </span>
-
-                                <strong>
-                                    {{ prediction.confidence }}
-                                </strong>
-
-                            </div>
-
-                        {% endfor %}
-
-                    {% else %}
-
-                        <div class="metric-row">
-                            <span>1. Waiting</span>
-                            <strong>—</strong>
-                        </div>
-
-                        <div class="metric-row">
-                            <span>2. Waiting</span>
-                            <strong>—</strong>
-                        </div>
-
-                        <div class="metric-row">
-                            <span>3. Waiting</span>
-                            <strong>—</strong>
-                        </div>
-
-                    {% endif %}
-
-                </div>
-
-            </div>
-
-
-            <div class="card">
-
-                <div class="card-heading" style="margin-bottom: 14px;">
-
-                    <div class="empty-icon">GTM</div>
-
-                    <div>
-                        <h3>Google Teachable Machine</h3>
-                        <p>Independent comparison model</p>
-                    </div>
-
-                </div>
-
-                <div class="result-item" style="margin-bottom: 12px;">
-
-                    <p>TOP PREDICTION</p>
-
-                    <strong>
-                        {% if result and result.gtm_prediction %}
-                            {{ result.gtm_prediction }}
-                        {% else %}
-                            Waiting for analysis
-                        {% endif %}
-                    </strong>
-
-                </div>
-
-                <div class="metric-row">
-
-                    <span>Top Confidence</span>
-
-                    <strong>
-                        {% if result and result.gtm_confidence %}
-                            {{ result.gtm_confidence }}
-                        {% else %}
-                            —
-                        {% endif %}
-                    </strong>
-
-                </div>
-
-                <div>
-
-                    <p class="small-title" style="margin: 12px 0 6px;">
-                        Top 3 Predictions
-                    </p>
-
-                    {% if result and result.gtm_top_predictions %}
-
-                        {% for prediction in result.gtm_top_predictions %}
-
-                            <div class="metric-row">
-
-                                <span>
-                                    {{ loop.index }}. {{ prediction.category }}
-                                </span>
-
-                                <strong>
-                                    {{ prediction.confidence }}
-                                </strong>
-
-                            </div>
-
-                        {% endfor %}
-
-                    {% else %}
-
-                        <div class="metric-row">
-                            <span>1. Waiting</span>
-                            <strong>—</strong>
-                        </div>
-
-                        <div class="metric-row">
-                            <span>2. Waiting</span>
-                            <strong>—</strong>
-                        </div>
-
-                        <div class="metric-row">
-                            <span>3. Waiting</span>
-                            <strong>—</strong>
-                        </div>
-
-                    {% endif %}
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <div class="action-box" style="margin-top: 18px;">
-
-            <div class="metric-row">
-                <span>Prediction Match</span>
-                <strong>
-                    {% if result and result.model_agreement %}
-                        {{ result.model_agreement }}
-                    {% else %}
-                        Awaiting models
-                    {% endif %}
-                </strong>
-            </div>
-
-            <div class="metric-row">
-                <span>Confidence Difference</span>
-                <strong>
-                    {% if result and result.confidence_difference %}
-                        {{ result.confidence_difference }}
-                    {% else %}
-                        —
-                    {% endif %}
-                </strong>
-            </div>
-
-            <div class="metric-row">
-                <span>Top-Two Margin</span>
-                <strong>
-                    {% if result and result.top_two_difference %}
-                        {{ result.top_two_difference }}
-                    {% else %}
-                        —
-                    {% endif %}
-                </strong>
-            </div>
-
-        </div>
-
-    </section>
-
-
-    <section class="main-grid" style="margin-top: 22px;">
-
-        <div class="card">
-
-            <div class="card-heading">
-                <div>
-                    <span class="small-title">VALIDATION</span>
-                    <h2>Audio Quality</h2>
-                    <p>Recording quality assessment.</p>
-                </div>
-            </div>
-
-            <div class="alert-status">
-
-                <div class="empty-icon">✓</div>
-
-                <div>
-                    <p>Current Quality</p>
-
-                    <strong>
-                        {% if result and result.audio_quality %}
-                            {{ result.audio_quality }}
-                        {% else %}
-                            Awaiting analysis
-                        {% endif %}
-                    </strong>
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <div class="card">
-
-            <div class="card-heading">
-                <div>
-                    <span class="small-title">LIVE SYSTEM</span>
-                    <h2>Monitoring Status</h2>
-                    <p>Current system readiness.</p>
-                </div>
-            </div>
-
-            <div class="metric-row">
-
-                <span>Microphone</span>
-                <strong id="microphoneStatus">Ready</strong>
-
-            </div>
-
-            <div class="metric-row">
-
-                <span>Detection Engine</span>
-                <strong>Ready</strong>
-
-            </div>
-
-            <div class="metric-row">
-
-                <span>Alert Engine</span>
-                <strong>Active</strong>
-
-            </div>
-
-        </div>
-
-    </section>
-
-
-    <section class="card signal-card">
-
-        <div class="card-heading">
-
-            <div>
-                <span class="small-title">SIGNAL ANALYSIS</span>
-                <h2>Audio Visualization</h2>
-                <p>
-                    Visual representation of the selected audio signal.
-                </p>
-            </div>
-
-            <span class="quality-badge">
-                Awaiting audio
-            </span>
-
-        </div>
-
-        <div class="signal-grid">
-
-            <div class="signal-box">
-
-                <h3>Waveform</h3>
-
-                <div class="waveform">
-
-                    <i></i><i></i><i></i><i></i><i></i>
-                    <i></i><i></i><i></i><i></i><i></i>
-                    <i></i><i></i><i></i><i></i><i></i>
-                    <i></i><i></i><i></i><i></i><i></i>
-                    <i></i><i></i>
-
-                </div>
-
-            </div>
-
-
-            <div class="signal-box">
-
-                <h3>Spectrogram</h3>
-
-                <div class="spectrogram">
-
-                    <div></div><div></div><div></div><div></div>
-                    <div></div><div></div><div></div><div></div>
-                    <div></div><div></div><div></div><div></div>
-                    <div></div><div></div><div></div><div></div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </section>
-
-
-    <section class="card" style="margin-top: 22px;">
-
-        <div class="card-heading">
-
-            <div>
-                <span class="small-title">SAFETY SYSTEM</span>
                 <h2>Alert Status</h2>
-                <p>
-                    Alerts are generated according to configured
-                    confidence, severity and model rules.
-                </p>
+                <p>Alerts waiting to be handled</p>
             </div>
-
-            <span class="status-badge">
-                {% if result and result.alert_status %}
-                    {{ result.alert_status }}
-                {% else %}
-                    No Active Alert
-                {% endif %}
-            </span>
-
         </div>
 
+        {% if active_alerts %}
+        {% for alert in active_alerts %}
         <div class="alert-status">
-
+            <div class="alert-dot severity-dot-{{ alert['severity']|lower }}"></div>
+            <div>
+                <strong>{{ display_name(alert['final_class'] or 'unknown') }} — {{ alert['severity'] }}</strong>
+                <p>{{ alert['message'] }}</p>
+                <p class="muted">{{ alert['created_at'] }}</p>
+            </div>
+        </div>
+        {% endfor %}
+        <a class="view-link" href="{{ url_for('alerts') }}">Handle alerts</a>
+        {% else %}
+        <div class="alert-status">
             <div class="alert-dot"></div>
-
             <div>
-                <strong>
-                    {% if result and result.alert_status %}
-                        {{ result.alert_status }}
-                    {% else %}
-                        System monitoring
-                    {% endif %}
-                </strong>
-
-                <p>
-                    Critical events will be surfaced here when
-                    detection and alert conditions are satisfied.
-                </p>
+                <strong>No Active Alert</strong>
+                <p>The system is monitoring for sound events.</p>
             </div>
-
         </div>
+        {% endif %}
+    </div>
 
-    </section>
-
-
-    <section class="card events-card">
-
+    <div class="card metrics-card">
         <div class="card-heading">
-
             <div>
-                <span class="small-title">EVENT LOG</span>
-                <h2>Recent Detections</h2>
-                <p>Latest processed sound events.</p>
+                <h2>System Status</h2>
+                <p>Live counts from the database</p>
             </div>
-
-            <a
-                href="{{ url_for('event_history') }}"
-                class="view-link"
-            >
-                View history →
-            </a>
-
         </div>
 
-        <div class="table-wrapper">
-
-            <table>
-
-                <thead>
-                    <tr>
-                        <th>Time</th>
-                        <th>Event</th>
-                        <th>Confidence</th>
-                        <th>Severity</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-
-                    {% if recent_events %}
-
-                        {% for event in recent_events %}
-
-                            <tr>
-                                <td>{{ event.time }}</td>
-                                <td>{{ event.event }}</td>
-                                <td>{{ event.confidence }}</td>
-                                <td>{{ event.severity }}</td>
-                                <td>
-                                    <span class="status-badge">
-                                        {{ event.status }}
-                                    </span>
-                                </td>
-                            </tr>
-
-                        {% endfor %}
-
-                    {% else %}
-
-                        <tr>
-                            <td colspan="5">
-                                No recent detections available.
-                            </td>
-                        </tr>
-
-                    {% endif %}
-
-                </tbody>
-
-            </table>
-
+        <div class="metric-row">
+            <span>Python model</span>
+            <strong>{% if model_status.available %}{{ model_status.name }} ({{ model_status.version }}){% else %}Not loaded{% endif %}</strong>
         </div>
 
-    </section>
-
-
-    <section class="bottom-grid">
-
-        <div class="card">
-
-            <div class="card-heading">
-
-                <div>
-                    <span class="small-title">CRITICAL EVENTS</span>
-                    <h2>Event Timeline</h2>
-                    <p>Chronological view of critical detections.</p>
-                </div>
-
-            </div>
-
-            {% if critical_events %}
-
-                {% for event in critical_events %}
-
-                    <div class="metric-row">
-
-                        <span>{{ event.time }}</span>
-
-                        <strong>
-                            {{ event.event }}
-                        </strong>
-
-                    </div>
-
-                {% endfor %}
-
-            {% else %}
-
-                <div class="empty-result" style="padding: 30px 10px;">
-
-                    <div class="empty-icon">✓</div>
-
-                    <div>
-                        <h3>No critical events</h3>
-                        <p>No critical detections recorded yet.</p>
-                    </div>
-
-                </div>
-
-            {% endif %}
-
+        <div class="metric-row">
+            <span>GTM model</span>
+            <strong>{% if gtm.ready %}Ready ({{ gtm.version }}){% else %}Not configured{% endif %}</strong>
         </div>
 
+        <div class="metric-row">
+            <span>Total events</span>
+            <strong>{{ stats.total_detections }}</strong>
+        </div>
 
-        <div class="card">
+        <div class="metric-row">
+            <span>Active alerts</span>
+            <strong>{{ stats.active_alerts }}</strong>
+        </div>
 
-            <div class="card-heading">
+        <div class="metric-row">
+            <span>Waiting for review</span>
+            <strong>{{ stats.pending_review }}</strong>
+        </div>
 
-                <div>
-                    <span class="small-title">REVIEW QUEUE</span>
-                    <h2>Manual Review</h2>
-                    <p>Events requiring human verification.</p>
-                </div>
+        <div class="metric-row">
+            <span>Average confidence</span>
+            <strong>{{ stats.average_confidence }}</strong>
+        </div>
+    </div>
+</section>
 
-                <span class="status-badge">
-                    {{ review_count | default(0) }}
-                </span>
+<section class="card events-card">
+    <div class="card-heading">
+        <div>
+            <h2>Recent Events</h2>
+            <p>Latest detected sound events</p>
+        </div>
 
-            </div>
+        <a href="{{ url_for('event_history') }}" class="view-link">View All</a>
+    </div>
 
-            {% if review_events %}
-
-                {% for review in review_events %}
-
-                    <div class="alert-status" style="margin-bottom: 10px;">
-
-                        <div>
-                            <strong>{{ review.event }}</strong>
-                            <p>{{ review.reason }}</p>
-                        </div>
-
-                        <a
-                            href="{{ url_for('manual_review') }}"
-                            class="secondary-button"
-                        >
-                            Review
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>File</th>
+                    <th>Event</th>
+                    <th>Confidence</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in recent_events %}
+                <tr>
+                    <td>{{ event['created_at'] }}</td>
+                    <td>{{ event['filename'] or '—' }}</td>
+                    <td>
+                        <a href="{{ url_for('detection_detail', detection_id=event['detection_id']) }}">
+                            {{ display_name(event['final_class'] or 'unknown') }}
                         </a>
-
-                    </div>
-
+                    </td>
+                    <td>
+                        {% if event['python_confidence'] is not none %}
+                            {{ '%.1f'|format(event['python_confidence'] * 100) }}%
+                        {% else %}—{% endif %}
+                    </td>
+                    <td><span class="severity-{{ (event['severity'] or 'low')|lower }}">{{ event['severity'] }}</span></td>
+                    <td>{{ event['status'] }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="muted">No events recorded yet.</td></tr>
                 {% endfor %}
-
-            {% else %}
-
-                <div class="empty-result" style="padding: 30px 10px;">
-
-                    <div class="empty-icon">✓</div>
-
-                    <h3>Queue is clear</h3>
-
-                    <p>
-                        No events currently require manual review.
-                    </p>
-
-                </div>
-
-            {% endif %}
-
-        </div>
-
-    </section>
-
-
-    <section class="card" style="margin-top: 22px;">
-
-        <div class="card-heading">
-
-            <div>
-                <span class="small-title">ANALYTICS</span>
-                <h2>Category Statistics</h2>
-                <p>Detection distribution across supported categories.</p>
-            </div>
-
-        </div>
-
-        <div class="table-wrapper">
-
-            <table>
-
-                <thead>
-                    <tr>
-                        <th>Category</th>
-                        <th>Total Detections</th>
-                        <th>Average Confidence</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-
-                    {% if category_stats %}
-
-                        {% for category in category_stats %}
-
-                            <tr>
-                                <td>
-                                    {{ category.category }}
-                                </td>
-
-                                <td>
-                                    {{ category.total }}
-                                </td>
-
-                                <td>
-                                    {{ category.average_confidence }}
-                                </td>
-                            </tr>
-
-                        {% endfor %}
-
-                    {% else %}
-
-                        <tr>
-                            <td colspan="3">
-                                Category statistics will appear after detections.
-                            </td>
-                        </tr>
-
-                    {% endif %}
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </section>
-
-</main>
-
-
-<footer>
-    <p>© SonicSentinel AI</p>
-</footer>
-
-
-<script>
-
-const audioInput = document.getElementById("audioInput");
-const audioPreview = document.getElementById("audioPreview");
-const previewMessage = document.getElementById("previewMessage");
-const previewTitle = document.getElementById("previewTitle");
-
-const monitorButton = document.getElementById("monitorButton");
-const microphoneStatus = document.getElementById("microphoneStatus");
-
-const acknowledgeButton =
-    document.getElementById("acknowledgeButton");
-
-
-audioInput.addEventListener("change", function () {
-
-    const file = this.files[0];
-
-    if (!file) {
-        return;
-    }
-
-    const audioURL = URL.createObjectURL(file);
-
-    audioPreview.src = audioURL;
-    audioPreview.load();
-
-    previewTitle.textContent = file.name;
-
-    previewMessage.textContent =
-        "Ready for analysis";
-
-});
-
-
-monitorButton.addEventListener("click", async function () {
-
-    try {
-
-        const stream =
-            await navigator.mediaDevices.getUserMedia({
-                audio: true
-            });
-
-        microphoneStatus.textContent =
-            "Permission Granted";
-
-        monitorButton.textContent =
-            "Microphone Ready";
-
-        monitorButton.disabled = true;
-
-        stream.getTracks().forEach(track => {
-            track.stop();
-        });
-
-    } catch (error) {
-
-        microphoneStatus.textContent =
-            "Permission Required";
-
-    }
-
-});
-
-
-if (acknowledgeButton) {
-
-    acknowledgeButton.addEventListener("click", function () {
-
-        acknowledgeButton.textContent =
-            "Alert Acknowledged";
-
-        acknowledgeButton.disabled = true;
-
-    });
-
-}
-
-</script>
-
-</body>
-</html>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+{% endblock %}

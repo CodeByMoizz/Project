@@ -1,276 +1,196 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+{% extends "base.html" %}
+{% set active_page = 'admin' %}
 
-    <title>Admin - SonicSentinel AI</title>
+{% block content %}
 
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}"
-    />
-  </head>
+<section class="page-heading">
+    <div>
+        <p class="small-title">ADMINISTRATION</p>
+        <h1>Administrator Dashboard</h1>
+        <p>Thresholds, alert rules, monitoring notices and the audit trail.</p>
+    </div>
+</section>
 
-  <body>
-    <header class="navbar">
-      <div class="logo">SonicSentinel <span>AI</span></div>
+<section class="bottom-grid">
+    <div class="card metrics-card">
+        <div class="card-heading">
+            <div>
+                <h2>System Overview</h2>
+                <p>Counts from the database</p>
+            </div>
+        </div>
 
-      <nav>
-        <a href="{{ url_for('dashboard') }}"> Dashboard </a>
+        <div class="metric-row"><span>Total audio events</span><strong>{{ stats.total_detections }}</strong></div>
+        <div class="metric-row"><span>Critical alerts</span><strong>{{ stats.critical_alerts }}</strong></div>
+        <div class="metric-row"><span>Average confidence</span><strong>{{ stats.average_confidence }}</strong></div>
+        <div class="metric-row"><span>Model disagreements</span><strong>{{ stats.disagreements }}</strong></div>
+        <div class="metric-row"><span>Poor-quality recordings</span><strong>{{ stats.poor_quality }}</strong></div>
+        <div class="metric-row"><span>Active Python model</span><strong>{{ model_status.name }} ({{ model_status.version }})</strong></div>
+        <div class="metric-row"><span>Python model loaded</span><strong>{{ 'Yes' if model_status.available else 'No' }}</strong></div>
+        <div class="metric-row"><span>GTM model configured</span><strong>{{ 'Yes' if gtm.ready else 'No' }}</strong></div>
+    </div>
 
-        <a href="{{ url_for('event_history') }}"> Event History </a>
+    <div class="card metrics-card">
+        <div class="card-heading">
+            <div>
+                <h2>Monitoring and Anomaly Alerts</h2>
+                <p>Conditions an administrator should look at</p>
+            </div>
+        </div>
 
-        <a href="{{ url_for('manual_review') }}"> Manual Review </a>
+        {% for notice in anomalies %}
+        <div class="notice-box">{{ notice }}</div>
+        {% else %}
+        <p class="muted">Nothing unusual to report.</p>
+        {% endfor %}
+    </div>
+</section>
 
-        <a href="{{ url_for('reports') }}"> Reports </a>
-
-        <a href="{{ url_for('admin') }}" class="active"> Admin </a>
-      </nav>
-    </header>
-
-    <main class="container">
-      <section class="page-heading">
+<section class="card">
+    <div class="card-heading">
         <div>
-          <p class="small-title">SONICSENTINEL AI</p>
-
-          <h1>Administration</h1>
-
-          <p>Configure detection and alert system settings.</p>
+            <h2>Detection Thresholds</h2>
+            <p>These apply immediately to new detections</p>
         </div>
+    </div>
 
-        <div class="system-status">
-          <span></span>
+    <form method="POST" class="filter-form">
+        <input type="hidden" name="action" value="settings">
 
-          Administration Active
+        <label>Minimum confidence for an automatic event
+            <input type="number" name="min_confidence" step="0.01" min="0" max="1"
+                   value="{{ settings.min_confidence }}">
+        </label>
+
+        <label>Minimum top-two margin
+            <input type="number" name="top_two_margin" step="0.01" min="0" max="1"
+                   value="{{ settings.top_two_margin }}">
+        </label>
+
+        <label>Maximum allowed confidence difference between models
+            <input type="number" name="max_confidence_difference" step="0.01" min="0" max="1"
+                   value="{{ settings.max_confidence_difference }}">
+        </label>
+
+        <label>Background-noise alert level
+            <input type="number" name="noise_alert_level" step="0.01" min="0" max="1"
+                   value="{{ settings.noise_alert_level }}">
+        </label>
+
+        <label>Overlapping-sound confidence
+            <input type="number" name="overlap_confidence" step="0.01" min="0" max="1"
+                   value="{{ settings.overlap_confidence }}">
+        </label>
+
+        <label>Repeated-detection window (seconds)
+            <input type="number" name="repeated_detection_window_sec" min="1"
+                   value="{{ settings.repeated_detection_window_sec }}">
+        </label>
+
+        <label>Data retention (days)
+            <input type="number" name="retention_days" min="1" value="{{ settings.retention_days }}">
+        </label>
+
+        <label>Failed logins before an alert
+            <input type="number" name="failed_login_alert_count" min="1"
+                   value="{{ settings.failed_login_alert_count }}">
+        </label>
+
+        <div class="filter-buttons">
+            <button type="submit" class="main-button small-button">Save Settings</button>
         </div>
-      </section>
+    </form>
+</section>
 
-      <!-- System Statistics -->
-
-      <section class="main-grid">
-        <div class="card">
-          <div class="card-heading">
-            <div>
-              <h2>System Statistics</h2>
-
-              <p>Current detection system statistics.</p>
-            </div>
-          </div>
-
-          <div class="metric-row">
-            <span>Total Events</span>
-
-            <strong> {{ admin_stats.total_events|default(0) }} </strong>
-          </div>
-
-          <div class="metric-row">
-            <span>Critical Alerts</span>
-
-            <strong> {{ admin_stats.critical_alerts|default(0) }} </strong>
-          </div>
-
-          <div class="metric-row">
-            <span>Average Confidence</span>
-
-            <strong>
-              {{ admin_stats.average_confidence|default('N/A') }}
-            </strong>
-          </div>
-
-          <div class="metric-row">
-            <span>Model Disagreements</span>
-
-            <strong> {{ admin_stats.model_disagreements|default(0) }} </strong>
-          </div>
-
-          <div class="metric-row">
-            <span>Poor Quality Recordings</span>
-
-            <strong> {{ admin_stats.poor_quality|default(0) }} </strong>
-          </div>
+<section class="card">
+    <div class="card-heading">
+        <div>
+            <h2>Data Retention</h2>
+            <p>Remove events older than the configured retention period</p>
         </div>
+    </div>
 
-        <!-- Model Configuration -->
+    <form method="POST">
+        <input type="hidden" name="action" value="retention">
+        <p class="muted">
+            Records older than {{ settings.retention_days }} days will be deleted. This cannot be undone.
+        </p>
+        <button type="submit" class="secondary-button">Apply Retention Now</button>
+    </form>
+</section>
 
-        <div class="card">
-          <div class="card-heading">
-            <div>
-              <h2>Detection Configuration</h2>
-
-              <p>Configure model uncertainty thresholds.</p>
-            </div>
-          </div>
-
-          <form method="POST">
-            <div class="result-item">
-              <p>Confidence Threshold</p>
-
-              <input
-                type="number"
-                name="confidence_threshold"
-                min="0"
-                max="1"
-                step="0.01"
-                value="{{ settings.confidence_threshold|default(0.70) }}"
-                style="
-                  width: 100%;
-                  padding: 10px;
-                  border: 1px solid #ccd5d9;
-                  border-radius: 6px;
-                "
-              />
-            </div>
-
-            <div class="result-item" style="margin-top: 12px">
-              <p>Top-Two Confidence Margin</p>
-
-              <input
-                type="number"
-                name="top_two_margin"
-                min="0"
-                max="1"
-                step="0.01"
-                value="{{ settings.top_two_margin|default(0.10) }}"
-                style="
-                  width: 100%;
-                  padding: 10px;
-                  border: 1px solid #ccd5d9;
-                  border-radius: 6px;
-                "
-              />
-            </div>
-
-            <button type="submit" class="main-button">
-              Save Configuration
-            </button>
-          </form>
+<section class="card">
+    <div class="card-heading">
+        <div>
+            <h2>Configured Alert Rules</h2>
+            <p>Loaded from alert_rules/alert_rules.json (version {{ rules.rules_version }})</p>
         </div>
-      </section>
+    </div>
 
-      <!-- Alert Configuration -->
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Min confidence</th>
+                    <th>Top-two margin</th>
+                    <th>Consecutive detections</th>
+                    <th>Agreement required</th>
+                    <th>Minimum quality</th>
+                    <th>Severity</th>
+                    <th>Recommended action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for name, rule in rules.classes.items() %}
+                <tr>
+                    <td>{{ display_name(name) }}</td>
+                    <td>{{ rule.min_confidence }}</td>
+                    <td>{{ rule.top_two_margin }}</td>
+                    <td>{{ rule.required_consecutive_detections }}</td>
+                    <td>{{ 'Yes' if rule.require_model_agreement else 'No' }}</td>
+                    <td>{{ rule.minimum_quality }}</td>
+                    <td><span class="severity-{{ rule.severity|lower }}">{{ rule.severity }}</span></td>
+                    <td>{{ rule.recommended_action }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
-      <section class="card" style="margin-top: 22px">
-        <div class="card-heading">
-          <div>
-            <h2>Alert Configuration</h2>
+    <p class="muted">
+        Edit alert_rules/alert_rules.json to add a category or change a rule. The file is
+        re-read on every detection, so no restart is needed.
+    </p>
+</section>
 
-            <p>Configure event severity and alert behavior.</p>
-          </div>
+<section class="card events-card">
+    <div class="card-heading">
+        <div>
+            <h2>Audit Trail</h2>
+            <p>Logins, uploads, predictions, alerts, reviews and exports</p>
         </div>
+    </div>
 
-        <form method="POST">
-          <div class="result-grid">
-            <div class="result-item">
-              <p>Critical Event Confirmation</p>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
+            </thead>
+            <tbody>
+                {% for row in audit_log %}
+                <tr>
+                    <td>{{ row['created_at'] }}</td>
+                    <td>{{ row['username'] or 'anonymous' }}</td>
+                    <td>{{ row['action_type'] }}</td>
+                    <td>{{ row['details'] or '—' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="muted">Nothing recorded yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
 
-              <select
-                name="critical_confirmation"
-                style="
-                  width: 100%;
-                  padding: 10px;
-                  border: 1px solid #ccd5d9;
-                  border-radius: 6px;
-                "
-              >
-                <option value="enabled">Enabled</option>
-
-                <option value="disabled">Disabled</option>
-              </select>
-            </div>
-
-            <div class="result-item">
-              <p>Alert Notifications</p>
-
-              <select
-                name="alert_notifications"
-                style="
-                  width: 100%;
-                  padding: 10px;
-                  border: 1px solid #ccd5d9;
-                  border-radius: 6px;
-                "
-              >
-                <option value="enabled">Enabled</option>
-
-                <option value="disabled">Disabled</option>
-              </select>
-            </div>
-          </div>
-
-          <button type="submit" class="main-button" style="width: auto">
-            Save Alert Settings
-          </button>
-        </form>
-      </section>
-
-      <!-- Supported Categories -->
-
-      <section class="card" style="margin-top: 22px">
-        <div class="card-heading">
-          <div>
-            <h2>Detection Categories</h2>
-
-            <p>Sound categories supported by the system.</p>
-          </div>
-        </div>
-
-        <div class="result-grid">
-          <div class="result-item">
-            <p>Category</p>
-            <strong>Machinery Fault</strong>
-          </div>
-
-          <div class="result-item">
-            <p>Category</p>
-            <strong>Glass Breaking</strong>
-          </div>
-
-          <div class="result-item">
-            <p>Category</p>
-            <strong>Alarm/Siren</strong>
-          </div>
-
-          <div class="result-item">
-            <p>Category</p>
-            <strong>Vehicle Horn</strong>
-          </div>
-
-          <div class="result-item">
-            <p>Category</p>
-            <strong>Animal Sound</strong>
-          </div>
-
-          <div class="result-item">
-            <p>Category</p>
-            <strong>Gunshot</strong>
-          </div>
-
-          <div class="result-item">
-            <p>Category</p>
-            <strong>Panic Scream</strong>
-          </div>
-
-          <div class="result-item">
-            <p>Category</p>
-            <strong>Aggression/Violent Conflict</strong>
-          </div>
-
-          <div class="result-item">
-            <p>Category</p>
-            <strong>Person Asking for Help</strong>
-          </div>
-
-          <div class="result-item">
-            <p>Category</p>
-            <strong>Background Noise</strong>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer>
-      <p>SonicSentinel AI · AcousticX Intelligence</p>
-    </footer>
-  </body>
-</html>
+{% endblock %}

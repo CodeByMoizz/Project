@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<section class="card">
+    <div class="empty-result">
+        <div class="empty-icon">!</div>
+        <h3>{{ code }}</h3>
+        <p>{{ message }}</p>
+        <p><a href="{{ url_for('dashboard') }}">Back to the dashboard</a></p>
+    </div>
+</section>
+
+{% endblock %}

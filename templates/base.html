@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SonicSentinel AI{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header class="navbar">
+    <div class="logo">
+        SonicSentinel <span>AI</span>
+    </div>
+
+    {% if user %}
+    <nav>
+        <a href="{{ url_for('dashboard') }}" class="{% if active_page == 'dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="{{ url_for('live') }}" class="{% if active_page == 'live' %}active{% endif %}">Live Monitor</a>
+        <a href="{{ url_for('event_history') }}" class="{% if active_page == 'history' %}active{% endif %}">Event History</a>
+        <a href="{{ url_for('alerts') }}" class="{% if active_page == 'alerts' %}active{% endif %}">Alerts</a>
+        <a href="{{ url_for('manual_review') }}" class="{% if active_page == 'review' %}active{% endif %}">Manual Review</a>
+        <a href="{{ url_for('reports') }}" class="{% if active_page == 'reports' %}active{% endif %}">Reports</a>
+        {% if user['role'] == 'admin' %}
+        <a href="{{ url_for('admin') }}" class="{% if active_page == 'admin' %}active{% endif %}">Admin</a>
+        {% endif %}
+    </nav>
+
+    <div class="user-box">
+        <a href="{{ url_for('profile') }}">{{ user['username'] }} ({{ user['role'] }})</a>
+        <a href="{{ url_for('logout') }}" class="logout-link">Sign out</a>
+    </div>
+    {% endif %}
+</header>
+
+<main class="container">
+
+    {% if model_status and not model_status.available %}
+    <div class="notice-box">
+        <strong>Python model not loaded.</strong> {{ model_status.message }}
+    </div>
+    {% endif %}
+
+    {% if gtm and not gtm.ready and active_page in ['dashboard', 'live'] %}
+    <div class="notice-box">
+        <strong>GTM model not loaded.</strong> {{ gtm.message }}
+    </div>
+    {% endif %}
+
+    {% if error_message %}
+    <div class="error-box">{{ error_message }}</div>
+    {% endif %}
+
+    {% if message %}
+    <div class="success-box">{{ message }}</div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+
+</main>
+
+<footer>
+    <p>SonicSentinel AI · AcousticX Intelligence · prototype for controlled testing only</p>
+</footer>
+
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% set active_page = 'live' %}
+
+{% block content %}
+
+<section class="page-heading">
+    <div>
+        <p class="small-title">REAL-TIME MONITORING</p>
+        <h1>Live Microphone Monitor</h1>
+        <p>Each {{ segment_duration }}-second window is analysed by both models independently.</p>
+    </div>
+
+    <div class="system-status">
+        <span id="micDot"></span>
+        <span id="micStatus">Microphone: not started</span>
+    </div>
+</section>
+
+<div class="notice-box">
+    <strong>Privacy notice.</strong> Monitoring only runs while you have started it and the
+    indicator above is active. Nothing is recorded before you grant permission, and each
+    captured window is stored as an event you can review or delete.
+</div>
+
+<section class="main-grid">
+
+    <div class="card input-card">
+        <div class="card-heading">
+            <div>
+                <h2>Monitoring Control</h2>
+                <p>Start and stop the microphone</p>
+            </div>
+        </div>
+
+        <div class="alert-buttons">
+            <button type="button" class="main-button" id="startButton">Start Monitoring</button>
+            <button type="button" class="secondary-button" id="pauseButton" disabled>Pause</button>
+            <button type="button" class="secondary-button" id="stopButton" disabled>Stop</button>
+        </div>
+
+        <div class="metric-row">
+            <span>Microphone</span>
+            <strong id="micStateText">Not started</strong>
+        </div>
+
+        <div class="metric-row">
+            <span>Windows analysed</span>
+            <strong id="windowCount">0</strong>
+        </div>
+
+        <div class="metric-row">
+            <span>Python model</span>
+            <strong>{% if model_status.available %}{{ model_status.name }}{% else %}Not loaded{% endif %}</strong>
+        </div>
+
+        <div class="metric-row">
+            <span>GTM model</span>
+            <strong id="gtmState">{% if gtm.ready %}Loading in browser…{% else %}Not configured{% endif %}</strong>
+        </div>
+
+        <p class="muted" id="liveMessage">Press Start Monitoring and allow microphone access.</p>
+    </div>
+
+    <div class="card detection-card">
+        <div class="card-heading">
+            <div>
+                <h2>Current Sound</h2>
+                <p>Most recent live window</p>
+            </div>
+
+            <span class="status-badge" id="liveStatus">Waiting</span>
+        </div>
+
+        <div class="detected-event">
+            <p>Detected Sound</p>
+            <h2 id="liveClass">—</h2>
+        </div>
+
+        <div class="result-grid">
+            <div class="result-item">
+                <p>Python result</p>
+                <strong id="livePython">—</strong>
+            </div>
+
+            <div class="result-item">
+                <p>GTM result</p>
+                <strong id="liveGtm">—</strong>
+            </div>
+
+            <div class="result-item">
+                <p>Agreement</p>
+                <strong id="liveAgreement">—</strong>
+            </div>
+
+            <div class="result-item">
+                <p>Severity</p>
+                <strong id="liveSeverity">—</strong>
+            </div>
+
+            <div class="result-item">
+                <p>Audio quality</p>
+                <strong id="liveQuality">—</strong>
+            </div>
+
+            <div class="result-item">
+                <p>Confidence difference</p>
+                <strong id="liveDifference">—</strong>
+            </div>
+        </div>
+
+        <div class="action-box">
+            <p>Active Alert</p>
+            <strong id="liveAlert">No active alert</strong>
+        </div>
+
+        <div class="review-box" id="liveReviewBox" style="display: none;">
+            <strong>Manual review required.</strong>
+            <p id="liveReviewReason"></p>
+        </div>
+    </div>
+</section>
+
+<section class="card events-card">
+    <div class="card-heading">
+        <div>
+            <h2>Live Window History</h2>
+            <p>Windows captured in this session</p>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Python</th>
+                    <th>GTM</th>
+                    <th>Agreement</th>
+                    <th>Severity</th>
+                    <th>Alert</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="liveHistory">
+                <tr><td colspan="7" class="muted">No windows captured yet.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="card events-card">
+    <div class="card-heading">
+        <div>
+            <h2>Recent Stored Events</h2>
+            <p>From the database</p>
+        </div>
+
+        <a href="{{ url_for('event_history') }}" class="view-link">View All</a>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Event</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in recent_events %}
+                <tr>
+                    <td>{{ event['created_at'] }}</td>
+                    <td>
+                        <a href="{{ url_for('detection_detail', detection_id=event['detection_id']) }}">
+                            {{ display_name(event['final_class'] or 'unknown') }}
+                        </a>
+                    </td>
+                    <td><span class="severity-{{ (event['severity'] or 'low')|lower }}">{{ event['severity'] }}</span></td>
+                    <td>{{ event['status'] }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="muted">No events recorded yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    var GTM_READY = {{ 'true' if gtm.ready else 'false' }};
+    var GTM_SOURCE = "{{ gtm.source }}";
+    var WINDOW_SECONDS = {{ segment_duration }};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.5.4/dist/speech-commands.min.js"></script>
+<script src="{{ url_for('static', filename='js/gtm.js') }}"></script>
+<script src="{{ url_for('static', filename='js/live.js') }}"></script>
+{% endblock %}

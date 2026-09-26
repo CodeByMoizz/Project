@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% set active_page = 'alerts' %}
+
+{% block content %}
+
+<section class="page-heading">
+    <div>
+        <p class="small-title">ALERTS</p>
+        <h1>Alert Handling</h1>
+        <p>{{ active_alerts|length }} alert(s) waiting to be handled.</p>
+    </div>
+</section>
+
+<section class="card">
+    <div class="card-heading">
+        <div>
+            <h2>Active Alerts</h2>
+            <p>Acknowledge, dismiss or escalate</p>
+        </div>
+    </div>
+
+    {% for alert in active_alerts %}
+    <div class="alert-status">
+        <div class="alert-dot severity-dot-{{ alert['severity']|lower }}"></div>
+
+        <div class="alert-body">
+            <strong>
+                {{ display_name(alert['final_class'] or 'unknown') }} —
+                <span class="severity-{{ alert['severity']|lower }}">{{ alert['severity'] }}</span>
+            </strong>
+            <p>{{ alert['message'] }}</p>
+            <p class="muted">
+                {{ alert['created_at'] }} ·
+                <a href="{{ url_for('detection_detail', detection_id=alert['detection_id']) }}">Event {{ alert['detection_id'] }}</a>
+            </p>
+
+            {% if user['role'] in ['operator', 'admin', 'reviewer', 'maintenance'] %}
+            <form method="POST" class="inline-form">
+                <input type="hidden" name="alert_id" value="{{ alert['alert_id'] }}">
+                <button type="submit" name="action" value="acknowledged" class="main-button small-button">Acknowledge</button>
+                <button type="submit" name="action" value="dismissed" class="secondary-button">Dismiss</button>
+                <button type="submit" name="action" value="escalated" class="secondary-button">Escalate</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-result">
+        <div class="empty-icon">&#10003;</div>
+        <h3>No active alerts</h3>
+        <p>Every alert has been handled.</p>
+    </div>
+    {% endfor %}
+</section>
+
+<section class="card events-card">
+    <div class="card-heading">
+        <div>
+            <h2>Alert History</h2>
+            <p>Every alert and the action taken on it</p>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Event</th>
+                    <th>Severity</th>
+                    <th>Message</th>
+                    <th>Status</th>
+                    <th>Handled at</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alert in alert_history %}
+                <tr>
+                    <td>{{ alert['created_at'] }}</td>
+                    <td>
+                        <a href="{{ url_for('detection_detail', detection_id=alert['detection_id']) }}">
+                            {{ display_name(alert['final_class'] or 'unknown') }}
+                        </a>
+                    </td>
+                    <td><span class="severity-{{ alert['severity']|lower }}">{{ alert['severity'] }}</span></td>
+                    <td>{{ alert['message'] }}</td>
+                    <td>{{ alert['status'] }}</td>
+                    <td>{{ alert['handled_at'] or '—' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="muted">No alerts recorded yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% endblock %}

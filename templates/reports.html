@@ -1,268 +1,286 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+{% extends "base.html" %}
+{% set active_page = 'reports' %}
 
-    <title>Reports - SonicSentinel AI</title>
+{% block content %}
 
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}"
-    />
-  </head>
+<section class="page-heading">
+    <div>
+        <p class="small-title">ANALYTICS AND REPORTING</p>
+        <h1>Reports</h1>
+        <p>Detection analytics and the saved results of the trained models.</p>
+    </div>
 
-  <body>
-    <header class="navbar">
-      <div class="logo">SonicSentinel <span>AI</span></div>
+    {% if user['role'] == 'admin' %}
+    <a class="main-button small-button" href="{{ url_for('export_detections') }}">Export CSV</a>
+    {% endif %}
+</section>
 
-      <nav>
-        <a href="{{ url_for('dashboard') }}"> Dashboard </a>
+<section class="bottom-grid">
+    <div class="card metrics-card">
+        <div class="card-heading">
+            <div>
+                <h2>Detection Summary</h2>
+                <p>From the event database</p>
+            </div>
+        </div>
 
-        <a href="{{ url_for('event_history') }}"> Event History </a>
+        <div class="metric-row"><span>Total sound events</span><strong>{{ stats.total_detections }}</strong></div>
+        <div class="metric-row"><span>Audio files stored</span><strong>{{ stats.total_audio }}</strong></div>
+        <div class="metric-row"><span>Critical alerts</span><strong>{{ stats.critical_alerts }}</strong></div>
+        <div class="metric-row"><span>Active alerts</span><strong>{{ stats.active_alerts }}</strong></div>
+        <div class="metric-row"><span>Average confidence</span><strong>{{ stats.average_confidence }}</strong></div>
+        <div class="metric-row"><span>Model disagreements</span><strong>{{ stats.disagreements }}</strong></div>
+        <div class="metric-row"><span>Poor-quality recordings</span><strong>{{ stats.poor_quality }}</strong></div>
+        <div class="metric-row"><span>Waiting for review</span><strong>{{ stats.pending_review }}</strong></div>
+    </div>
 
-        <a href="{{ url_for('manual_review') }}"> Manual Review </a>
+    <div class="card metrics-card">
+        <div class="card-heading">
+            <div>
+                <h2>Category Frequency</h2>
+                <p>How often each class was detected</p>
+            </div>
+        </div>
 
-        <a href="{{ url_for('reports') }}" class="active"> Reports </a>
+        {% for row in stats.by_class %}
+        <div class="metric-row">
+            <span>{{ display_name(row['final_class'] or 'unknown') }}</span>
+            <strong>{{ row['total'] }}</strong>
+        </div>
+        {% else %}
+        <p class="muted">No events recorded yet.</p>
+        {% endfor %}
+    </div>
+</section>
 
-        <a href="{{ url_for('admin') }}"> Admin </a>
-      </nav>
-    </header>
+<section class="bottom-grid">
+    <div class="card metrics-card">
+        <div class="card-heading">
+            <div>
+                <h2>Confidence Distribution</h2>
+                <p>Python model top-class confidence</p>
+            </div>
+        </div>
 
-    <main class="container">
-      <section class="page-heading">
+        {% for row in stats.confidence_buckets %}
+        <div class="metric-row"><span>{{ row['bucket'] }}</span><strong>{{ row['total'] }}</strong></div>
+        {% else %}
+        <p class="muted">No confidence scores recorded yet.</p>
+        {% endfor %}
+    </div>
+
+    <div class="card metrics-card">
+        <div class="card-heading">
+            <div>
+                <h2>Audio Quality</h2>
+                <p>Quality of analysed recordings</p>
+            </div>
+        </div>
+
+        {% for row in stats.by_quality %}
+        <div class="metric-row"><span>{{ row['quality'] or '—' }}</span><strong>{{ row['total'] }}</strong></div>
+        {% else %}
+        <p class="muted">No quality results recorded yet.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="bottom-grid">
+    <div class="card metrics-card">
+        <div class="card-heading">
+            <div>
+                <h2>Severity Breakdown</h2>
+                <p>Events by assigned severity</p>
+            </div>
+        </div>
+
+        {% for row in stats.by_severity %}
+        <div class="metric-row">
+            <span class="severity-{{ (row['severity'] or 'low')|lower }}">{{ row['severity'] or '—' }}</span>
+            <strong>{{ row['total'] }}</strong>
+        </div>
+        {% else %}
+        <p class="muted">No events recorded yet.</p>
+        {% endfor %}
+    </div>
+
+    <div class="card metrics-card">
+        <div class="card-heading">
+            <div>
+                <h2>Reviewer Outcomes</h2>
+                <p>False positives and confirmations</p>
+            </div>
+        </div>
+
+        {% for row in stats.reviewer_outcomes %}
+        <div class="metric-row"><span>{{ row['decision'] }}</span><strong>{{ row['total'] }}</strong></div>
+        {% else %}
+        <p class="muted">No reviews recorded yet. False positives and negatives are counted from reviewer decisions.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="card metrics-card">
+    <div class="card-heading">
         <div>
-          <p class="small-title">SONICSENTINEL AI</p>
+            <h2>Detection Trend</h2>
+            <p>Events per day, most recent first</p>
+        </div>
+    </div>
 
-          <h1>Reports & Analytics</h1>
+    {% for row in stats.trend %}
+    <div class="metric-row"><span>{{ row['day'] }}</span><strong>{{ row['total'] }}</strong></div>
+    {% else %}
+    <p class="muted">No events recorded yet.</p>
+    {% endfor %}
+</section>
 
-          <p>Analyze detection activity and system performance.</p>
+<section class="card">
+    <div class="card-heading">
+        <div>
+            <h2>Python Model Results</h2>
+            <p>Read from the saved metrics file, never recomputed here</p>
         </div>
 
-        <div class="system-status">
-          <span></span>
+        <span class="status-badge">Active: {{ active_model }}</span>
+    </div>
 
-          Analytics Ready
-        </div>
-      </section>
+    {% if not model_metrics.available %}
+    <p class="muted">{{ model_metrics.message }}</p>
+    {% else %}
 
-      <!-- Summary -->
+    <div class="result-grid">
+        <div class="result-item"><p>Accuracy</p><strong>{{ model_metrics.accuracy }}</strong></div>
+        <div class="result-item"><p>Macro F1</p><strong>{{ model_metrics.macro_f1 }}</strong></div>
+        <div class="result-item"><p>Precision</p><strong>{{ model_metrics.precision }}</strong></div>
+        <div class="result-item"><p>Recall</p><strong>{{ model_metrics.recall }}</strong></div>
+        <div class="result-item"><p>F1 score</p><strong>{{ model_metrics.f1_score }}</strong></div>
+        <div class="result-item"><p>Trained at</p><strong>{{ model_metrics.trained_at or '—' }}</strong></div>
+    </div>
 
-      <section class="main-grid">
-        <div class="card">
-          <div class="card-heading">
-            <div>
-              <h2>Total Events</h2>
-              <p>Recorded detection events</p>
-            </div>
-          </div>
-
-          <div class="detected-event">
-            <p>Total Events</p>
-
-            <h2>{{ statistics.total_events|default(0) }}</h2>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-heading">
-            <div>
-              <h2>Critical Alerts</h2>
-              <p>High-priority detected events</p>
-            </div>
-          </div>
-
-          <div class="detected-event">
-            <p>Critical Events</p>
-
-            <h2>{{ statistics.critical_events|default(0) }}</h2>
-          </div>
-        </div>
-      </section>
-
-      <!-- Analytics -->
-
-      <section class="main-grid" style="margin-top: 22px">
-        <div class="card">
-          <div class="card-heading">
-            <div>
-              <h2>Category Frequency</h2>
-
-              <p>Number of events by sound category.</p>
-            </div>
-          </div>
-
-          {% for category in category_stats %}
-
-          <div class="metric-row">
-            <span> {{ category.name }} </span>
-
-            <strong> {{ category.count }} </strong>
-          </div>
-
-          {% endfor %}
-        </div>
-
-        <div class="card">
-          <div class="card-heading">
-            <div>
-              <h2>Detection Quality</h2>
-
-              <p>Model and audio quality statistics.</p>
-            </div>
-          </div>
-
-          <div class="metric-row">
-            <span>Average Confidence</span>
-
-            <strong>
-              {{ statistics.average_confidence|default('N/A') }}
-            </strong>
-          </div>
-
-          <div class="metric-row">
-            <span>Model Disagreements</span>
-
-            <strong> {{ statistics.model_disagreements|default(0) }} </strong>
-          </div>
-
-          <div class="metric-row">
-            <span>Poor Quality Recordings</span>
-
-            <strong> {{ statistics.poor_quality|default(0) }} </strong>
-          </div>
-        </div>
-      </section>
-
-      <!-- Reports -->
-
-      <section class="card" style="margin-top: 22px">
-        <div class="card-heading">
-          <div>
-            <h2>Generate Report</h2>
-
-            <p>Export event and model analysis data.</p>
-          </div>
-        </div>
-
-        <div class="result-grid">
-          <div class="result-item">
-            <p>Report Type</p>
-
-            <select
-              name="report_type"
-              style="
-                width: 100%;
-                padding: 10px;
-                border: 1px solid #ccd5d9;
-                border-radius: 6px;
-              "
-            >
-              <option>Complete Event Report</option>
-              <option>Critical Events Report</option>
-              <option>Model Comparison Report</option>
-              <option>Audio Quality Report</option>
-              <option>Manual Review Report</option>
-            </select>
-          </div>
-
-          <div class="result-item">
-            <p>Date Range</p>
-
-            <select
-              name="date_range"
-              style="
-                width: 100%;
-                padding: 10px;
-                border: 1px solid #ccd5d9;
-                border-radius: 6px;
-              "
-            >
-              <option>All Time</option>
-              <option>Today</option>
-              <option>Last 7 Days</option>
-              <option>Last 30 Days</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="alert-buttons" style="margin-top: 18px">
-          <a
-            href="{{ url_for('export_report', format='csv') }}"
-            class="main-button"
-            style="width: auto; text-decoration: none"
-          >
-            Export CSV
-          </a>
-
-          <a
-            href="{{ url_for('export_report', format='excel') }}"
-            class="secondary-button"
-            style="text-decoration: none"
-          >
-            Export Excel
-          </a>
-        </div>
-      </section>
-
-      <!-- Recent Report Data -->
-
-      <section class="card events-card">
-        <div class="card-heading">
-          <div>
-            <h2>Recent Detection Statistics</h2>
-
-            <p>Latest analytical results.</p>
-          </div>
-        </div>
-
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th>Total</th>
-                <th>Average Confidence</th>
-                <th>Critical</th>
-                <th>Disagreements</th>
-              </tr>
-            </thead>
-
+    <h3>Critical-class recall</h3>
+    <div class="table-wrapper">
+        <table>
+            <thead><tr><th>Class</th><th>Recall</th></tr></thead>
             <tbody>
-              {% for item in report_data %}
-
-              <tr>
-                <td>{{ item.category }}</td>
-
-                <td>{{ item.total }}</td>
-
-                <td>{{ item.average_confidence }}</td>
-
-                <td>{{ item.critical }}</td>
-
-                <td>{{ item.disagreements }}</td>
-              </tr>
-
-              {% else %}
-
-              <tr>
-                <td
-                  colspan="5"
-                  style="text-align: center; padding: 30px; color: #7a848c"
-                >
-                  No report data available.
-                </td>
-              </tr>
-
-              {% endfor %}
+                {% for row in model_metrics.critical_recall %}
+                <tr>
+                    <td>{{ row.name }}</td>
+                    <td>{{ row.recall }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="2" class="muted">No per-class results in the metrics file.</td></tr>
+                {% endfor %}
             </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
+        </table>
+    </div>
 
-    <footer>
-      <p>SonicSentinel AI · AcousticX Intelligence</p>
-    </footer>
-  </body>
-</html>
+    <h3>Per-class performance</h3>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1</th><th>Support</th></tr>
+            </thead>
+            <tbody>
+                {% for row in model_metrics.per_class %}
+                <tr>
+                    <td>{{ row.name }}</td>
+                    <td>{{ row.precision }}</td>
+                    <td>{{ row.recall }}</td>
+                    <td>{{ row.f1 }}</td>
+                    <td>{{ row.support }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="muted">No per-class results in the metrics file.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if model_metrics.confusion_matrix %}
+    <h3>Confusion matrix</h3>
+    <div class="table-wrapper">
+        <table class="confusion-table">
+            <thead>
+                <tr>
+                    <th>Actual \ Predicted</th>
+                    {% for label in model_metrics.labels %}<th>{{ label }}</th>{% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in model_metrics.confusion_matrix %}
+                <tr>
+                    <th>{{ model_metrics.labels[loop.index0] }}</th>
+                    {% for value in row %}<td>{{ value }}</td>{% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if model_metrics.noise_robustness %}
+    <h3>Noise robustness</h3>
+    <div class="table-wrapper">
+        <table>
+            <thead><tr><th>Condition</th><th>Accuracy</th></tr></thead>
+            <tbody>
+                {% for name, value in model_metrics.noise_robustness.items() %}
+                <tr><td>{{ name }}</td><td>{{ value }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if model_metrics.best_params %}
+    <h3>Best hyperparameters</h3>
+    <div class="table-wrapper">
+        <table>
+            <tbody>
+                {% for name, value in model_metrics.best_params.items() %}
+                <tr><td>{{ name }}</td><td>{{ value }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% endif %}
+</section>
+
+<section class="card">
+    <div class="card-heading">
+        <div>
+            <h2>Models Compared</h2>
+            <p>The three Python models trained for this project</p>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr><th>Model</th><th>Accuracy</th><th>Macro F1</th><th>Precision</th><th>Recall</th><th>Active</th></tr>
+            </thead>
+            <tbody>
+                {% for row in model_comparison %}
+                <tr>
+                    <td>{{ row.name }}</td>
+                    <td>{% if row.available %}{{ row.accuracy }}{% else %}not trained{% endif %}</td>
+                    <td>{% if row.available %}{{ row.macro_f1 }}{% else %}—{% endif %}</td>
+                    <td>{% if row.available %}{{ row.precision }}{% else %}—{% endif %}</td>
+                    <td>{% if row.available %}{{ row.recall }}{% else %}—{% endif %}</td>
+                    <td>{{ 'Yes' if row.is_active else '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <p class="muted">
+        The Teachable Machine model is evaluated in the Teachable Machine interface and compared
+        against the Python model on every analysed segment, shown on each event's report page.
+    </p>
+</section>
+
+{% endblock %}
