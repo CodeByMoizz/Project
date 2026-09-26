@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - SonicSentinel AI</title>
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+
+  <body>
+    <nav class="navbar">
+      <div class="navbar-container">
+        <div class="logo">SonicSentinel AI</div>
+      </div>
+    </nav>
+
+    <main class="container">
+      <div class="page-heading">
+        <h1>Login</h1>
+        <p>Sign in to access SonicSentinel AI.</p>
+      </div>
+
+      <div class="card" style="max-width: 500px; margin: 30px auto">
+        <div class="card-heading">
+          <h2>Account Login</h2>
+        </div>
+
+        {% if error_message %}
+        <div class="error-box">{{ error_message }}</div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('login') }}">
+          <div style="margin-bottom: 18px">
+            <label for="email">Email Address</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              placeholder="Enter your email"
+              required
+              style="
+                width: 100%;
+                padding: 12px;
+                margin-top: 6px;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+              "
+            />
+          </div>
+
+          <div style="margin-bottom: 20px">
+            <label for="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              placeholder="Enter your password"
+              required
+              style="
+                width: 100%;
+                padding: 12px;
+                margin-top: 6px;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+              "
+            />
+          </div>
+
+          <button type="submit" class="primary-btn">Login</button>
+        </form>
+
+        <div style="margin-top: 20px; text-align: center">
+          <p>
+            Don't have an account?
+            <a href="{{ url_for('register') }}"> Register </a>
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>SonicSentinel AI</p>
+    </footer>
+  </body>
+</html>

@@ -3,174 +3,615 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SonicSentinel AI</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <title>SonicSentinel AI - Dashboard</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+<base target="_blank">
 </head>
-<script>
-    const audioInput = document.querySelector('input[name="audio"]');
-    const audioPreview = document.getElementById('audioPreview');
 
-    audioInput.addEventListener('change', function () {
-        const file = this.files[0];
-
-        if (file) {
-            audioPreview.src = URL.createObjectURL(file);
-            audioPreview.load();
-        }
-    });
-</script>
 <body>
 
 <header class="navbar">
-    <div class="logo">
-        SonicSentinel <span>AI</span>
-    </div>
+      <div class="logo">SonicSentinel <span>AI</span></div>
 
-    <nav>
+      <nav>
         <a href="{{ url_for('dashboard') }}" class="active">Dashboard</a>
-        <a href="{{ url_for('event_history') }}">Event History</a>
-        <a href="{{ url_for('manual_review') }}">Manual Review</a>
-        <a href="{{ url_for('reports') }}">Reports</a>
-        <a href="{{ url_for('admin') }}">Admin</a>
-    </nav>
-</header>
-
+        <a href="{{ url_for('event_history') }}">
+          Event History
+        </a>
+        <a href="{{ url_for('manual_review') }}"> Manual Review </a>
+        <a href="{{ url_for('reports') }}"> Reports </a>
+        <a href="{{ url_for('admin') }}"> Admin </a>
+      </nav>
+    </header>
 
 <main class="container">
 
     <section class="page-heading">
+
         <div>
-            <p class="small-title">SONICSENTINEL AI</p>
+            <div class="small-title">REAL-TIME AUDIO INTELLIGENCE</div>
+
             <h1>Sound Event Detection</h1>
-            <p>Monitor and analyze audio events in real time.</p>
+
+            <p>
+                Monitor, analyze and compare detected sound events
+                using independent AI models.
+            </p>
         </div>
 
         <div class="system-status">
             <span></span>
-            System Ready
+            System Ready &nbsp;·&nbsp; Awaiting audio input
         </div>
+
     </section>
 
 
     <section class="main-grid">
 
-        <div class="card input-card">
+        <div class="card">
+
             <div class="card-heading">
                 <div>
+                    <span class="small-title">AUDIO ANALYSIS</span>
                     <h2>Audio Input</h2>
-                    <p>Upload an audio file for analysis.</p>
+                    <p>Upload an audio recording for sound-event analysis.</p>
                 </div>
+
+                <div class="empty-icon">♪</div>
             </div>
 
-            <form method="POST" enctype="multipart/form-data">
+            <form
+                action="{{ url_for('dashboard') }}"
+                method="POST"
+                enctype="multipart/form-data"
+            >
 
-                <label class="upload-box">
+                <label class="upload-box" for="audioInput">
+
                     <div class="upload-icon">↑</div>
-                    <h3>Upload Audio</h3>
-                    <p>Choose an audio file to analyze</p>
 
-                    <input type="file" name="audio" accept="audio/*">
+                    <h3>Choose an audio file</h3>
 
-                    <span class="choose-button">Choose Audio</span>
+                    <p>
+                        WAV, MP3, FLAC, OGG or M4A
+                    </p>
+
+                    <span class="choose-button">Select file</span>
+
+                    <input
+                        type="file"
+                        id="audioInput"
+                        name="audio"
+                        accept="audio/*"
+                        required
+                    >
+
                 </label>
 
-                <button type="submit" class="main-button">
-                    Analyze Audio
-                </button>
-
                 {% if error_message %}
-                <div class="error-box">
-                 {{ error_message }}
-                </div>
+                    <div class="error-box">
+                        {{ error_message }}
+                    </div>
                 {% endif %}
 
-              
+                <div class="alert-buttons">
+
+                    <button
+                        type="submit"
+                        class="main-button"
+                    >
+                        Analyze Audio
+                    </button>
+
+                    <button
+                        type="button"
+                        class="secondary-button"
+                        id="monitorButton"
+                    >
+                        Start Monitoring
+                    </button>
+
+                </div>
+
             </form>
 
-<div class="audio-player">
-    <h3>Audio Preview</h3>
-
-   <audio id="audioPreview" controls>
-    Your browser does not support audio.
-</audio>
-
-</div>
-            <div class="live-box">
-                <div>
-                    <h3>Live Monitoring</h3>
-                    <p>Microphone monitoring can be connected here.</p>
-               </div>
-
-                <button class="secondary-button" type="button">
-                    Start Monitoring
-                </button>
-            </div>
         </div>
 
 
-        <div class="card detection-card">
+        <div class="card">
 
             <div class="card-heading">
+
                 <div>
-                    <h2>Current Detection</h2>
-                    <p>Latest sound event result</p>
+                    <span class="small-title">SELECTED RECORDING</span>
+                    <h2>Audio Preview</h2>
+                    <p>Review the selected recording before analysis.</p>
                 </div>
 
-                <span class="status-badge">
-                    {% if result %}
-                        {{ result.status }}
-                    {% else %}
-                        Waiting
-                    {% endif %}
-                </span>
+                <div class="empty-icon">♫</div>
+
             </div>
 
+            <div class="audio-player">
 
-            {% if result %}
+                <h3>Selected file</h3>
+
+                <audio
+                    id="audioPreview"
+                    controls
+                    preload="metadata"
+                >
+                    Your browser does not support audio playback.
+                </audio>
+
+            </div>
+
+            <div class="alert-status" style="margin-top: 15px;">
+
+                <div class="empty-icon">♪</div>
+
+                <div>
+                    <strong id="previewTitle">
+                        No audio selected
+                    </strong>
+
+                    <p id="previewMessage">
+                        Select an audio file to preview it.
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <section class="card" style="margin-top: 22px;">
+
+        <div class="card-heading">
+
+            <div>
+                <span class="small-title">LATEST RESULT</span>
+                <h2>Current Detection</h2>
+                <p>
+                    Final result generated from the analyzed audio.
+                </p>
+            </div>
+
+            <span class="status-badge">
+                {% if result %}
+                    {{ result.status | default("Detected") }}
+                {% else %}
+                    Awaiting Analysis
+                {% endif %}
+            </span>
+
+        </div>
+
+        {% if result %}
 
             <div class="detected-event">
-                <p>Detected Sound</p>
-                <h2>{{ result.sound }}</h2>
+
+                <p>DETECTED SOUND</p>
+
+                <h2>
+                    {{ result.detected_sound | default("Unknown") }}
+                </h2>
+
+                <p>
+                    Classification generated from the analyzed recording.
+                </p>
+
             </div>
 
             <div class="result-grid">
 
                 <div class="result-item">
                     <p>Confidence</p>
-                    <strong>{{ result.confidence }}</strong>
+                    <strong>
+                        {{ result.confidence | default("N/A") }}
+                    </strong>
                 </div>
 
                 <div class="result-item">
                     <p>Severity</p>
-                    <strong>{{ result.severity }}</strong>
+                    <strong>
+                        {{ result.severity | default("N/A") }}
+                    </strong>
+                </div>
+
+                <div class="result-item">
+                    <p>Alert Status</p>
+                    <strong>
+                        {{ result.alert_status | default("No Active Alert") }}
+                    </strong>
+                </div>
+
+                <div class="result-item">
+                    <p>Model Agreement</p>
+                    <strong>
+                        {{ result.model_agreement | default("N/A") }}
+                    </strong>
                 </div>
 
             </div>
 
             <div class="action-box">
-                <p>Recommended Action</p>
-                <strong>{{ result.action }}</strong>
+
+                <p>MANUAL REVIEW</p>
+
+                <strong>
+                    {{ result.manual_review | default("Not Required") }}
+                </strong>
+
+                <p style="margin-top: 10px;">RECOMMENDED ACTION</p>
+
+                <strong>
+                    {{ result.recommended_action | default("No action required.") }}
+                </strong>
+
             </div>
 
             <div class="alert-buttons">
-                <button type="button" class="main-button small-button">
-                    Acknowledge
+
+                <button
+                    type="button"
+                    class="secondary-button"
+                    id="acknowledgeButton"
+                >
+                    Acknowledge Alert
                 </button>
 
-                <button type="button" class="secondary-button">
-                    Review
-                </button>
+                <a
+                    href="{{ url_for('manual_review') }}"
+                    class="secondary-button"
+                >
+                    Review Event
+                </a>
+
             </div>
 
-            {% else %}
+        {% else %}
 
             <div class="empty-result">
-                <div class="empty-icon">♪</div>
-                <h3>No Detection Yet</h3>
-                <p>Upload an audio file to see the detection result.</p>
+
+                <div class="empty-icon">⌁</div>
+
+                <div>
+                    <h3>No detection available</h3>
+
+                    <p>
+                        Upload an audio recording or start monitoring
+                        to generate a sound-event prediction.
+                    </p>
+                </div>
+
+                <span class="status-badge" style="margin-top: 10px; display: inline-block;">
+                    Waiting for audio
+                </span>
+
             </div>
 
-            {% endif %}
+        {% endif %}
+
+    </section>
+
+
+    <section class="card" style="margin-top: 22px;">
+
+        <div class="card-heading">
+
+            <div>
+                <span class="small-title">AI MODEL ANALYSIS</span>
+                <h2>Model Comparison</h2>
+                <p>
+                    Compare independently generated Python and
+                    Google Teachable Machine predictions.
+                </p>
+            </div>
+
+            <span class="status-badge">
+                {% if result and result.model_agreement %}
+                    {{ result.model_agreement }}
+                {% else %}
+                    Awaiting Results
+                {% endif %}
+            </span>
+
+        </div>
+
+
+        <div class="main-grid">
+
+
+            <div class="card">
+
+                <div class="card-heading" style="margin-bottom: 14px;">
+
+                    <div class="empty-icon">PY</div>
+
+                    <div>
+                        <h3>Python Model</h3>
+                        <p>Primary classification model</p>
+                    </div>
+
+                </div>
+
+                <div class="result-item" style="margin-bottom: 12px;">
+
+                    <p>TOP PREDICTION</p>
+
+                    <strong>
+                        {% if result and result.python_prediction %}
+                            {{ result.python_prediction }}
+                        {% else %}
+                            Waiting for analysis
+                        {% endif %}
+                    </strong>
+
+                </div>
+
+                <div class="metric-row">
+
+                    <span>Top Confidence</span>
+
+                    <strong>
+                        {% if result and result.python_confidence %}
+                            {{ result.python_confidence }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </strong>
+
+                </div>
+
+                <div>
+
+                    <p class="small-title" style="margin: 12px 0 6px;">
+                        Top 3 Predictions
+                    </p>
+
+                    {% if result and result.python_top_predictions %}
+
+                        {% for prediction in result.python_top_predictions %}
+
+                            <div class="metric-row">
+
+                                <span>
+                                    {{ loop.index }}. {{ prediction.category }}
+                                </span>
+
+                                <strong>
+                                    {{ prediction.confidence }}
+                                </strong>
+
+                            </div>
+
+                        {% endfor %}
+
+                    {% else %}
+
+                        <div class="metric-row">
+                            <span>1. Waiting</span>
+                            <strong>—</strong>
+                        </div>
+
+                        <div class="metric-row">
+                            <span>2. Waiting</span>
+                            <strong>—</strong>
+                        </div>
+
+                        <div class="metric-row">
+                            <span>3. Waiting</span>
+                            <strong>—</strong>
+                        </div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <div class="card-heading" style="margin-bottom: 14px;">
+
+                    <div class="empty-icon">GTM</div>
+
+                    <div>
+                        <h3>Google Teachable Machine</h3>
+                        <p>Independent comparison model</p>
+                    </div>
+
+                </div>
+
+                <div class="result-item" style="margin-bottom: 12px;">
+
+                    <p>TOP PREDICTION</p>
+
+                    <strong>
+                        {% if result and result.gtm_prediction %}
+                            {{ result.gtm_prediction }}
+                        {% else %}
+                            Waiting for analysis
+                        {% endif %}
+                    </strong>
+
+                </div>
+
+                <div class="metric-row">
+
+                    <span>Top Confidence</span>
+
+                    <strong>
+                        {% if result and result.gtm_confidence %}
+                            {{ result.gtm_confidence }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </strong>
+
+                </div>
+
+                <div>
+
+                    <p class="small-title" style="margin: 12px 0 6px;">
+                        Top 3 Predictions
+                    </p>
+
+                    {% if result and result.gtm_top_predictions %}
+
+                        {% for prediction in result.gtm_top_predictions %}
+
+                            <div class="metric-row">
+
+                                <span>
+                                    {{ loop.index }}. {{ prediction.category }}
+                                </span>
+
+                                <strong>
+                                    {{ prediction.confidence }}
+                                </strong>
+
+                            </div>
+
+                        {% endfor %}
+
+                    {% else %}
+
+                        <div class="metric-row">
+                            <span>1. Waiting</span>
+                            <strong>—</strong>
+                        </div>
+
+                        <div class="metric-row">
+                            <span>2. Waiting</span>
+                            <strong>—</strong>
+                        </div>
+
+                        <div class="metric-row">
+                            <span>3. Waiting</span>
+                            <strong>—</strong>
+                        </div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="action-box" style="margin-top: 18px;">
+
+            <div class="metric-row">
+                <span>Prediction Match</span>
+                <strong>
+                    {% if result and result.model_agreement %}
+                        {{ result.model_agreement }}
+                    {% else %}
+                        Awaiting models
+                    {% endif %}
+                </strong>
+            </div>
+
+            <div class="metric-row">
+                <span>Confidence Difference</span>
+                <strong>
+                    {% if result and result.confidence_difference %}
+                        {{ result.confidence_difference }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </strong>
+            </div>
+
+            <div class="metric-row">
+                <span>Top-Two Margin</span>
+                <strong>
+                    {% if result and result.top_two_difference %}
+                        {{ result.top_two_difference }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </strong>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <section class="main-grid" style="margin-top: 22px;">
+
+        <div class="card">
+
+            <div class="card-heading">
+                <div>
+                    <span class="small-title">VALIDATION</span>
+                    <h2>Audio Quality</h2>
+                    <p>Recording quality assessment.</p>
+                </div>
+            </div>
+
+            <div class="alert-status">
+
+                <div class="empty-icon">✓</div>
+
+                <div>
+                    <p>Current Quality</p>
+
+                    <strong>
+                        {% if result and result.audio_quality %}
+                            {{ result.audio_quality }}
+                        {% else %}
+                            Awaiting analysis
+                        {% endif %}
+                    </strong>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="card">
+
+            <div class="card-heading">
+                <div>
+                    <span class="small-title">LIVE SYSTEM</span>
+                    <h2>Monitoring Status</h2>
+                    <p>Current system readiness.</p>
+                </div>
+            </div>
+
+            <div class="metric-row">
+
+                <span>Microphone</span>
+                <strong id="microphoneStatus">Ready</strong>
+
+            </div>
+
+            <div class="metric-row">
+
+                <span>Detection Engine</span>
+                <strong>Ready</strong>
+
+            </div>
+
+            <div class="metric-row">
+
+                <span>Alert Engine</span>
+                <strong>Active</strong>
+
+            </div>
 
         </div>
 
@@ -180,44 +621,37 @@
     <section class="card signal-card">
 
         <div class="card-heading">
+
             <div>
-                <h2>Audio Analysis</h2>
-                <p>Audio signal information</p>
+                <span class="small-title">SIGNAL ANALYSIS</span>
+                <h2>Audio Visualization</h2>
+                <p>
+                    Visual representation of the selected audio signal.
+                </p>
             </div>
 
-            <span class="quality-badge">Audio Quality: Good</span>
+            <span class="quality-badge">
+                Awaiting audio
+            </span>
+
         </div>
 
         <div class="signal-grid">
 
             <div class="signal-box">
+
                 <h3>Waveform</h3>
 
                 <div class="waveform">
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
+
+                    <i></i><i></i><i></i><i></i><i></i>
+                    <i></i><i></i><i></i><i></i><i></i>
+                    <i></i><i></i><i></i><i></i><i></i>
+                    <i></i><i></i><i></i><i></i><i></i>
+                    <i></i><i></i>
+
                 </div>
+
             </div>
 
 
@@ -226,14 +660,12 @@
                 <h3>Spectrogram</h3>
 
                 <div class="spectrogram">
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                    <div></div>
+
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+
                 </div>
 
             </div>
@@ -243,51 +675,46 @@
     </section>
 
 
-    <section class="bottom-grid">
+    <section class="card" style="margin-top: 22px;">
 
-        <div class="card alert-card">
+        <div class="card-heading">
 
-            <div class="card-heading">
-                <div>
-                    <h2>Alert Status</h2>
-                    <p>Current system alerts</p>
-                </div>
+            <div>
+                <span class="small-title">SAFETY SYSTEM</span>
+                <h2>Alert Status</h2>
+                <p>
+                    Alerts are generated according to configured
+                    confidence, severity and model rules.
+                </p>
             </div>
 
-            <div class="alert-status">
-                <div class="alert-dot"></div>
-
-                <div>
-                    <strong>No Active Alert</strong>
-                    <p>The system is monitoring for sound events.</p>
-                </div>
-            </div>
+            <span class="status-badge">
+                {% if result and result.alert_status %}
+                    {{ result.alert_status }}
+                {% else %}
+                    No Active Alert
+                {% endif %}
+            </span>
 
         </div>
 
+        <div class="alert-status">
 
-        <div class="card metrics-card">
+            <div class="alert-dot"></div>
 
-            <div class="card-heading">
-                <div>
-                    <h2>System Status</h2>
-                    <p>Current monitoring status</p>
-                </div>
-            </div>
+            <div>
+                <strong>
+                    {% if result and result.alert_status %}
+                        {{ result.alert_status }}
+                    {% else %}
+                        System monitoring
+                    {% endif %}
+                </strong>
 
-            <div class="metric-row">
-                <span>Audio Input</span>
-                <strong>Ready</strong>
-            </div>
-
-            <div class="metric-row">
-                <span>Detection</span>
-                <strong>Ready</strong>
-            </div>
-
-            <div class="metric-row">
-                <span>Alerts</span>
-                <strong>Active</strong>
+                <p>
+                    Critical events will be surfaced here when
+                    detection and alert conditions are satisfied.
+                </p>
             </div>
 
         </div>
@@ -298,14 +725,20 @@
     <section class="card events-card">
 
         <div class="card-heading">
+
             <div>
-                <h2>Recent Events</h2>
-                <p>Latest detected sound events</p>
+                <span class="small-title">EVENT LOG</span>
+                <h2>Recent Detections</h2>
+                <p>Latest processed sound events.</p>
             </div>
 
-            <a href="{{ url_for('event_history') }}" class="view-link">
-                View All
+            <a
+                href="{{ url_for('event_history') }}"
+                class="view-link"
+            >
+                View history →
             </a>
+
         </div>
 
         <div class="table-wrapper">
@@ -316,23 +749,215 @@
                     <tr>
                         <th>Time</th>
                         <th>Event</th>
+                        <th>Confidence</th>
                         <th>Severity</th>
                         <th>Status</th>
                     </tr>
                 </thead>
 
-               <tbody>
+                <tbody>
 
-    {% for event in recent_events %}
-    <tr>
-        <td>{{ event.time }}</td>
-        <td>{{ event.event }}</td>
-        <td><span class="{{ event.severity_class }}">{{ event.severity }}</span></td>
-        <td>{{ event.status }}</td>
-    </tr>
-    {% endfor %}
+                    {% if recent_events %}
 
-</tbody>
+                        {% for event in recent_events %}
+
+                            <tr>
+                                <td>{{ event.time }}</td>
+                                <td>{{ event.event }}</td>
+                                <td>{{ event.confidence }}</td>
+                                <td>{{ event.severity }}</td>
+                                <td>
+                                    <span class="status-badge">
+                                        {{ event.status }}
+                                    </span>
+                                </td>
+                            </tr>
+
+                        {% endfor %}
+
+                    {% else %}
+
+                        <tr>
+                            <td colspan="5">
+                                No recent detections available.
+                            </td>
+                        </tr>
+
+                    {% endif %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+
+    <section class="bottom-grid">
+
+        <div class="card">
+
+            <div class="card-heading">
+
+                <div>
+                    <span class="small-title">CRITICAL EVENTS</span>
+                    <h2>Event Timeline</h2>
+                    <p>Chronological view of critical detections.</p>
+                </div>
+
+            </div>
+
+            {% if critical_events %}
+
+                {% for event in critical_events %}
+
+                    <div class="metric-row">
+
+                        <span>{{ event.time }}</span>
+
+                        <strong>
+                            {{ event.event }}
+                        </strong>
+
+                    </div>
+
+                {% endfor %}
+
+            {% else %}
+
+                <div class="empty-result" style="padding: 30px 10px;">
+
+                    <div class="empty-icon">✓</div>
+
+                    <div>
+                        <h3>No critical events</h3>
+                        <p>No critical detections recorded yet.</p>
+                    </div>
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+
+        <div class="card">
+
+            <div class="card-heading">
+
+                <div>
+                    <span class="small-title">REVIEW QUEUE</span>
+                    <h2>Manual Review</h2>
+                    <p>Events requiring human verification.</p>
+                </div>
+
+                <span class="status-badge">
+                    {{ review_count | default(0) }}
+                </span>
+
+            </div>
+
+            {% if review_events %}
+
+                {% for review in review_events %}
+
+                    <div class="alert-status" style="margin-bottom: 10px;">
+
+                        <div>
+                            <strong>{{ review.event }}</strong>
+                            <p>{{ review.reason }}</p>
+                        </div>
+
+                        <a
+                            href="{{ url_for('manual_review') }}"
+                            class="secondary-button"
+                        >
+                            Review
+                        </a>
+
+                    </div>
+
+                {% endfor %}
+
+            {% else %}
+
+                <div class="empty-result" style="padding: 30px 10px;">
+
+                    <div class="empty-icon">✓</div>
+
+                    <h3>Queue is clear</h3>
+
+                    <p>
+                        No events currently require manual review.
+                    </p>
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </section>
+
+
+    <section class="card" style="margin-top: 22px;">
+
+        <div class="card-heading">
+
+            <div>
+                <span class="small-title">ANALYTICS</span>
+                <h2>Category Statistics</h2>
+                <p>Detection distribution across supported categories.</p>
+            </div>
+
+        </div>
+
+        <div class="table-wrapper">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Total Detections</th>
+                        <th>Average Confidence</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% if category_stats %}
+
+                        {% for category in category_stats %}
+
+                            <tr>
+                                <td>
+                                    {{ category.category }}
+                                </td>
+
+                                <td>
+                                    {{ category.total }}
+                                </td>
+
+                                <td>
+                                    {{ category.average_confidence }}
+                                </td>
+                            </tr>
+
+                        {% endfor %}
+
+                    {% else %}
+
+                        <tr>
+                            <td colspan="3">
+                                Category statistics will appear after detections.
+                            </td>
+                        </tr>
+
+                    {% endif %}
+
+                </tbody>
 
             </table>
 
@@ -344,8 +969,90 @@
 
 
 <footer>
-    <p>SonicSentinel AI · AcousticX Intelligence</p>
+    <p>© SonicSentinel AI</p>
 </footer>
+
+
+<script>
+
+const audioInput = document.getElementById("audioInput");
+const audioPreview = document.getElementById("audioPreview");
+const previewMessage = document.getElementById("previewMessage");
+const previewTitle = document.getElementById("previewTitle");
+
+const monitorButton = document.getElementById("monitorButton");
+const microphoneStatus = document.getElementById("microphoneStatus");
+
+const acknowledgeButton =
+    document.getElementById("acknowledgeButton");
+
+
+audioInput.addEventListener("change", function () {
+
+    const file = this.files[0];
+
+    if (!file) {
+        return;
+    }
+
+    const audioURL = URL.createObjectURL(file);
+
+    audioPreview.src = audioURL;
+    audioPreview.load();
+
+    previewTitle.textContent = file.name;
+
+    previewMessage.textContent =
+        "Ready for analysis";
+
+});
+
+
+monitorButton.addEventListener("click", async function () {
+
+    try {
+
+        const stream =
+            await navigator.mediaDevices.getUserMedia({
+                audio: true
+            });
+
+        microphoneStatus.textContent =
+            "Permission Granted";
+
+        monitorButton.textContent =
+            "Microphone Ready";
+
+        monitorButton.disabled = true;
+
+        stream.getTracks().forEach(track => {
+            track.stop();
+        });
+
+    } catch (error) {
+
+        microphoneStatus.textContent =
+            "Permission Required";
+
+    }
+
+});
+
+
+if (acknowledgeButton) {
+
+    acknowledgeButton.addEventListener("click", function () {
+
+        acknowledgeButton.textContent =
+            "Alert Acknowledged";
+
+        acknowledgeButton.disabled = true;
+
+    });
+
+}
+
+</script>
 
 </body>
 </html>

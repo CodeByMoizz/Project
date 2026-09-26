@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Event History - SonicSentinel AI</title>
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+
+  <body>
+  <body>
+    <header class="navbar">
+      <div class="logo">SonicSentinel <span>AI</span></div>
+
+      <nav>
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('event_history') }}" class="active">
+          Event History
+        </a>
+        <a href="{{ url_for('manual_review') }}"> Manual Review </a>
+        <a href="{{ url_for('reports') }}"> Reports </a>
+        <a href="{{ url_for('admin') }}"> Admin </a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="page-heading">
+        <div>
+          <p class="small-title">SONICSENTINEL AI</p>
+
+          <h1>Event History</h1>
+
+          <p>Search and review previously detected sound events.</p>
+        </div>
+
+        <div class="system-status">
+          <span></span>
+          System Ready
+        </div>
+      </section>
+
+      <!-- Filters -->
+
+      <section class="card">
+        <div class="card-heading">
+          <div>
+            <h2>Search Events</h2>
+
+            <p>Filter recorded sound detection events.</p>
+          </div>
+        </div>
+
+        <form method="GET">
+          <div class="result-grid">
+            <div class="result-item">
+              <p>Audio ID</p>
+
+              <input
+                type="text"
+                name="audio_id"
+                value="{{ request.args.get('audio_id', '') }}"
+                placeholder="Enter Audio ID"
+                style="
+                  width: 100%;
+                  padding: 10px;
+                  border: 1px solid #ccd5d9;
+                  border-radius: 6px;
+                "
+              />
+            </div>
+
+            <div class="result-item">
+              <p>Filename</p>
+
+              <input
+                type="text"
+                name="filename"
+                value="{{ request.args.get('filename', '') }}"
+                placeholder="audio.wav"
+                style="
+                  width: 100%;
+                  padding: 10px;
+                  border: 1px solid #ccd5d9;
+                  border-radius: 6px;
+                "
+              />
+            </div>
+
+            <div class="result-item">
+              <p>Category</p>
+
+              <select
+                name="category"
+                style="
+                  width: 100%;
+                  padding: 10px;
+                  border: 1px solid #ccd5d9;
+                  border-radius: 6px;
+                "
+              >
+                <option value="">All Categories</option>
+
+                <option>Machinery Fault</option>
+                <option>Glass Breaking</option>
+                <option>Alarm/Siren</option>
+                <option>Vehicle Horn</option>
+                <option>Animal Sound</option>
+                <option>Gunshot</option>
+                <option>Panic Scream</option>
+                <option>Aggression/Violent Conflict</option>
+                <option>Person Asking for Help</option>
+                <option>Background Noise</option>
+              </select>
+            </div>
+
+            <div class="result-item">
+              <p>Severity</p>
+
+              <select
+                name="severity"
+                style="
+                  width: 100%;
+                  padding: 10px;
+                  border: 1px solid #ccd5d9;
+                  border-radius: 6px;
+                "
+              >
+                <option value="">All Severities</option>
+                <option>Informational</option>
+                <option>Low</option>
+                <option>Medium</option>
+                <option>High</option>
+                <option>Critical</option>
+              </select>
+            </div>
+
+            <div class="result-item">
+              <p>Quality</p>
+
+              <select
+                name="quality"
+                style="
+                  width: 100%;
+                  padding: 10px;
+                  border: 1px solid #ccd5d9;
+                  border-radius: 6px;
+                "
+              >
+                <option value="">All Quality States</option>
+                <option>Good</option>
+                <option>Acceptable</option>
+                <option>Poor</option>
+                <option>Unusable</option>
+              </select>
+            </div>
+
+            <div class="result-item">
+              <p>Review Status</p>
+
+              <select
+                name="review_status"
+                style="
+                  width: 100%;
+                  padding: 10px;
+                  border: 1px solid #ccd5d9;
+                  border-radius: 6px;
+                "
+              >
+                <option value="">All Statuses</option>
+                <option>Uploaded</option>
+                <option>Classified</option>
+                <option>Uncertain</option>
+                <option>Alert Generated</option>
+                <option>Manual Review</option>
+                <option>Reviewed</option>
+                <option>Closed</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 15px">
+            <button
+              type="submit"
+              class="main-button"
+              style="width: auto; padding-left: 25px; padding-right: 25px"
+            >
+              Search Events
+            </button>
+
+            <a
+              href="{{ url_for('event_history') }}"
+              class="secondary-button"
+              style="text-decoration: none; display: flex; align-items: center"
+            >
+              Clear Filters
+            </a>
+          </div>
+        </form>
+      </section>
+
+      <!-- Event Table -->
+
+      <section class="card events-card">
+        <div class="card-heading">
+          <div>
+            <h2>Detection Events</h2>
+
+            <p>Chronological history of detected sound events.</p>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Audio ID</th>
+                <th>Filename</th>
+                <th>Event</th>
+                <th>Confidence</th>
+                <th>Severity</th>
+                <th>Quality</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {% for event in events %}
+
+              <tr>
+                <td>{{ event.time }}</td>
+
+                <td>{{ event.audio_id }}</td>
+
+                <td>{{ event.filename }}</td>
+
+                <td>{{ event.event }}</td>
+
+                <td>{{ event.confidence }}</td>
+
+                <td>
+                  <span class="{{ event.severity_class }}">
+                    {{ event.severity }}
+                  </span>
+                </td>
+
+                <td>{{ event.quality }}</td>
+
+                <td>{{ event.status }}</td>
+              </tr>
+
+              {% else %}
+
+              <tr>
+                <td
+                  colspan="8"
+                  style="text-align: center; padding: 30px; color: #7a848c"
+                >
+                  No events found.
+                </td>
+              </tr>
+
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>SonicSentinel AI · AcousticX Intelligence</p>
+    </footer>
+  </body>
+</html>

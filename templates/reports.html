@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Reports - SonicSentinel AI</title>
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+
+  <body>
+    <header class="navbar">
+      <div class="logo">SonicSentinel <span>AI</span></div>
+
+      <nav>
+        <a href="{{ url_for('dashboard') }}"> Dashboard </a>
+
+        <a href="{{ url_for('event_history') }}"> Event History </a>
+
+        <a href="{{ url_for('manual_review') }}"> Manual Review </a>
+
+        <a href="{{ url_for('reports') }}" class="active"> Reports </a>
+
+        <a href="{{ url_for('admin') }}"> Admin </a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="page-heading">
+        <div>
+          <p class="small-title">SONICSENTINEL AI</p>
+
+          <h1>Reports & Analytics</h1>
+
+          <p>Analyze detection activity and system performance.</p>
+        </div>
+
+        <div class="system-status">
+          <span></span>
+
+          Analytics Ready
+        </div>
+      </section>
+
+      <!-- Summary -->
+
+      <section class="main-grid">
+        <div class="card">
+          <div class="card-heading">
+            <div>
+              <h2>Total Events</h2>
+              <p>Recorded detection events</p>
+            </div>
+          </div>
+
+          <div class="detected-event">
+            <p>Total Events</p>
+
+            <h2>{{ statistics.total_events|default(0) }}</h2>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-heading">
+            <div>
+              <h2>Critical Alerts</h2>
+              <p>High-priority detected events</p>
+            </div>
+          </div>
+
+          <div class="detected-event">
+            <p>Critical Events</p>
+
+            <h2>{{ statistics.critical_events|default(0) }}</h2>
+          </div>
+        </div>
+      </section>
+
+      <!-- Analytics -->
+
+      <section class="main-grid" style="margin-top: 22px">
+        <div class="card">
+          <div class="card-heading">
+            <div>
+              <h2>Category Frequency</h2>
+
+              <p>Number of events by sound category.</p>
+            </div>
+          </div>
+
+          {% for category in category_stats %}
+
+          <div class="metric-row">
+            <span> {{ category.name }} </span>
+
+            <strong> {{ category.count }} </strong>
+          </div>
+
+          {% endfor %}
+        </div>
+
+        <div class="card">
+          <div class="card-heading">
+            <div>
+              <h2>Detection Quality</h2>
+
+              <p>Model and audio quality statistics.</p>
+            </div>
+          </div>
+
+          <div class="metric-row">
+            <span>Average Confidence</span>
+
+            <strong>
+              {{ statistics.average_confidence|default('N/A') }}
+            </strong>
+          </div>
+
+          <div class="metric-row">
+            <span>Model Disagreements</span>
+
+            <strong> {{ statistics.model_disagreements|default(0) }} </strong>
+          </div>
+
+          <div class="metric-row">
+            <span>Poor Quality Recordings</span>
+
+            <strong> {{ statistics.poor_quality|default(0) }} </strong>
+          </div>
+        </div>
+      </section>
+
+      <!-- Reports -->
+
+      <section class="card" style="margin-top: 22px">
+        <div class="card-heading">
+          <div>
+            <h2>Generate Report</h2>
+
+            <p>Export event and model analysis data.</p>
+          </div>
+        </div>
+
+        <div class="result-grid">
+          <div class="result-item">
+            <p>Report Type</p>
+
+            <select
+              name="report_type"
+              style="
+                width: 100%;
+                padding: 10px;
+                border: 1px solid #ccd5d9;
+                border-radius: 6px;
+              "
+            >
+              <option>Complete Event Report</option>
+              <option>Critical Events Report</option>
+              <option>Model Comparison Report</option>
+              <option>Audio Quality Report</option>
+              <option>Manual Review Report</option>
+            </select>
+          </div>
+
+          <div class="result-item">
+            <p>Date Range</p>
+
+            <select
+              name="date_range"
+              style="
+                width: 100%;
+                padding: 10px;
+                border: 1px solid #ccd5d9;
+                border-radius: 6px;
+              "
+            >
+              <option>All Time</option>
+              <option>Today</option>
+              <option>Last 7 Days</option>
+              <option>Last 30 Days</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="alert-buttons" style="margin-top: 18px">
+          <a
+            href="{{ url_for('export_report', format='csv') }}"
+            class="main-button"
+            style="width: auto; text-decoration: none"
+          >
+            Export CSV
+          </a>
+
+          <a
+            href="{{ url_for('export_report', format='excel') }}"
+            class="secondary-button"
+            style="text-decoration: none"
+          >
+            Export Excel
+          </a>
+        </div>
+      </section>
+
+      <!-- Recent Report Data -->
+
+      <section class="card events-card">
+        <div class="card-heading">
+          <div>
+            <h2>Recent Detection Statistics</h2>
+
+            <p>Latest analytical results.</p>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Total</th>
+                <th>Average Confidence</th>
+                <th>Critical</th>
+                <th>Disagreements</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {% for item in report_data %}
+
+              <tr>
+                <td>{{ item.category }}</td>
+
+                <td>{{ item.total }}</td>
+
+                <td>{{ item.average_confidence }}</td>
+
+                <td>{{ item.critical }}</td>
+
+                <td>{{ item.disagreements }}</td>
+              </tr>
+
+              {% else %}
+
+              <tr>
+                <td
+                  colspan="5"
+                  style="text-align: center; padding: 30px; color: #7a848c"
+                >
+                  No report data available.
+                </td>
+              </tr>
+
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>SonicSentinel AI · AcousticX Intelligence</p>
+    </footer>
+  </body>
+</html>
