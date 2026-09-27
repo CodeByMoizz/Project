@@ -5,32 +5,49 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # Change this one line to switch the active Python model after training.
 # It must match a key in PYTHON_MODELS below.
+#
+# "kind" says what the model reads. "features" means the 215 summary values from
+# feature_extraction/features.py. "spectrogram" means the log-mel image from
+# feature_extraction/spectrogram.py, which is what the CNN uses.
 ACTIVE_PYTHON_MODEL = "xgboost"
 
 PYTHON_MODELS = {
     "random_forest": {
+        "kind": "features",
         "model_file": "random_forest_model.pkl",
         "scaler_file": "random_forest_scaler.pkl",
         "metrics_file": "random_forest_metrics.json",
         "version": "rf-v1",
     },
     "svm": {
+        "kind": "features",
         "model_file": "svm_model.pkl",
         "scaler_file": "svm_scaler.pkl",
         "metrics_file": "svm_metrics.json",
         "version": "svm-v1",
     },
     "xgboost": {
+        "kind": "features",
         "model_file": "xgboost_model.pkl",
         "scaler_file": "xgboost_scaler.pkl",
         "metrics_file": "xgboost_metrics.json",
         "version": "xgb-v1",
     },
     "logistic_regression": {
+        "kind": "features",
         "model_file": "logistic_regression_model.pkl",
         "scaler_file": "logistic_regression_scaler.pkl",
         "metrics_file": "logistic_regression_metrics.json",
         "version": "lr-v1",
+    },
+    # The CNN reads a log-mel spectrogram, so it needs no scaler: the
+    # spectrogram is scaled to a fixed decibel range instead.
+    "cnn": {
+        "kind": "spectrogram",
+        "model_file": "cnn_model.keras",
+        "scaler_file": None,
+        "metrics_file": "cnn_metrics.json",
+        "version": "cnn-v1",
     },
 }
 

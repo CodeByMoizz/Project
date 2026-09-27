@@ -15,17 +15,25 @@ from feature_extraction.features import (
     extract_features_from_samples,
     features_to_vector,
 )
+from feature_extraction.spectrogram import build_spectrogram
 
 # Loaded once and kept, because loading a model per request is slow.
 _loaded = {}
 
 
+def model_kind():
+    return active_model_config().get("kind", "features")
+
+
 def model_paths():
     settings = active_model_config()
 
+    scaler_file = settings.get("scaler_file")
+
     return {
         "model": PYTHON_MODEL_DIR / settings["model_file"],
-        "scaler": PYTHON_MODEL_DIR / settings["scaler_file"],
+        # A spectrogram model has no scaler, the spectrogram is already scaled.
+        "scaler": PYTHON_MODEL_DIR / scaler_file if scaler_file else None,
         "encoder": PYTHON_MODEL_DIR / LABEL_ENCODER_FILE,
         "version": settings["version"],
     }
@@ -35,7 +43,8 @@ def model_status():
     paths = model_paths()
 
     missing = [
-        name for name in ("model", "scaler") if not os.path.exists(paths[name])
+        name for name in ("model", "scaler")
+        if paths[name] is not None and not os.path.exists(paths[name])
     ]
 
     if missing:
@@ -73,12 +82,20 @@ def load_model():
         return None
 
     paths = model_paths()
+    kind = model_kind()
 
-    try:
-        model = joblib.load(paths["model"])
-        scaler = joblib.load(paths["scaler"])
-    except Exception:
-        return None
+    if kind == "spectrogram":
+        model = load_keras_model(paths["model"])
+        scaler = None
+
+        if model is None:
+            return None
+    else:
+        try:
+            model = joblib.load(paths["model"])
+            scaler = joblib.load(paths["scaler"])
+        except Exception:
+            return None
 
     encoder = None
     if os.path.exists(paths["encoder"]):
@@ -92,6 +109,7 @@ def load_model():
         {
             "name": ACTIVE_PYTHON_MODEL,
             "version": paths["version"],
+            "kind": kind,
             "model": model,
             "scaler": scaler,
             "encoder": encoder,
@@ -99,6 +117,24 @@ def load_model():
     )
 
     return _loaded
+
+
+# TensorFlow is only needed for the CNN, so it is imported here rather than at
+# the top. A missing TensorFlow gives a clear message instead of breaking the
+# whole application.
+def load_keras_model(path):
+    try:
+        import keras
+    except ImportError:
+        try:
+            from tensorflow import keras
+        except ImportError:
+            return None
+
+    try:
+        return keras.models.load_model(path)
+    except Exception:
+        return None
 
 
 def label_for_index(loaded, index):
@@ -112,6 +148,9 @@ def label_for_index(loaded, index):
 
     model = loaded["model"]
     classes = getattr(model, "classes_", None)
+
+    if loaded.get("kind") == "spectrogram":
+        classes = None
 
     if classes is not None and index < len(classes):
         value = classes[index]
@@ -133,14 +172,7 @@ def empty_scores():
     return {name: 0.0 for name in CLASSES}
 
 
-# Returns confidence scores for all ten classes, or None when no model is
-# loaded, so callers can show a message instead of failing.
-def get_prediction(samples, sr):
-    loaded = load_model()
-
-    if loaded is None:
-        return None
-
+def predict_from_features(loaded, samples, sr):
     try:
         features = extract_features_from_samples(samples, sr)
         vector = features_to_vector(features)
@@ -152,8 +184,40 @@ def get_prediction(samples, sr):
 
     try:
         scaled = loaded["scaler"].transform([vector])
-        probabilities = loaded["model"].predict_proba(scaled)[0]
+        return loaded["model"].predict_proba(scaled)[0]
     except Exception:
+        return None
+
+
+def predict_from_spectrogram(loaded, samples, sr):
+    import numpy as np
+
+    try:
+        spectrogram = build_spectrogram(samples, sr)
+    except Exception:
+        return None
+
+    try:
+        batch = np.expand_dims(spectrogram, axis=0)
+        return loaded["model"].predict(batch, verbose=0)[0]
+    except Exception:
+        return None
+
+
+# Returns confidence scores for all ten classes, or None when no model is
+# loaded, so callers can show a message instead of failing.
+def get_prediction(samples, sr):
+    loaded = load_model()
+
+    if loaded is None:
+        return None
+
+    if loaded.get("kind") == "spectrogram":
+        probabilities = predict_from_spectrogram(loaded, samples, sr)
+    else:
+        probabilities = predict_from_features(loaded, samples, sr)
+
+    if probabilities is None:
         return None
 
     scores = empty_scores()

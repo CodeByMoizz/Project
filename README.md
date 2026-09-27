@@ -183,7 +183,8 @@ Open each one from Drive in Colab and run the cells top to bottom:
 | 1 | `notebooks/LogisticRegression.ipynb` | Fastest. Run it first to confirm the data loads. |
 | 2 | `notebooks/Random_Forest.ipynb` | CPU. |
 | 3 | `notebooks/XGBoost.ipynb` | Set Runtime > Change runtime type > T4 GPU first. |
-| 4 | `notebooks/SVM.ipynb` | Slowest, because it needs probability estimates. |
+| 4 | `notebooks/SVM.ipynb` | Needs probability estimates, so each fit is slower. |
+| 5 | `notebooks/CNN.ipynb` | A GPU runtime is strongly recommended. Reads spectrograms, not the 215 features. |
 
 Any order works; they are independent. Run all four to compare them.
 
@@ -217,6 +218,7 @@ Each notebook writes four files into your Drive. The last cell lists them.
 | Random_Forest | `random_forest_model.pkl`, `random_forest_scaler.pkl`, `label_encoder.pkl` | `random_forest_metrics.json` |
 | XGBoost | `xgboost_model.pkl`, `xgboost_scaler.pkl`, `label_encoder.pkl` | `xgboost_metrics.json` |
 | SVM | `svm_model.pkl`, `svm_scaler.pkl`, `label_encoder.pkl` | `svm_metrics.json` |
+| CNN | `cnn_model.keras`, `label_encoder.pkl` (no scaler) | `cnn_metrics.json` |
 
 Download them and put them in the matching folders in the local project:
 
@@ -242,8 +244,12 @@ with accuracy, macro F1, precision and recall. Then set one line in `config/conf
 ACTIVE_PYTHON_MODEL = "xgboost"
 ```
 
-Valid values: `random_forest`, `svm`, `xgboost`, `logistic_regression`. No other file names
-a model. Restart the app afterwards.
+Valid values: `random_forest`, `svm`, `xgboost`, `logistic_regression`, `cnn`. No other
+file names a model. Restart the app afterwards.
+
+Selecting `cnn` needs TensorFlow installed locally (`pip install tensorflow`). If it is
+missing the app still starts and every page works, and it reports that the model could
+not be loaded instead of failing.
 
 `notebooks/eda.ipynb` explores the raw audio and is not part of training. It is written for
 local use.
@@ -267,6 +273,24 @@ stores it and compares it with the Python prediction.
 The two models never see each other's output: the Python model runs on the server from the
 audio alone, and the GTM model runs in the browser from the microphone stream alone. The
 Python prediction is never sent to the browser before the GTM result is posted.
+
+## The two kinds of model
+
+| Kind | Models | Input | Built by |
+|---|---|---|---|
+| `features` | random_forest, svm, xgboost, logistic_regression | 215 summary values | `feature_extraction/features.py` |
+| `spectrogram` | cnn | log-mel image, 64 x 94 x 1 | `feature_extraction/spectrogram.py` |
+
+The kind is declared per model in `config/config.py` and the application picks the matching
+input automatically. The four feature models each need a scaler; the CNN does not, because
+its spectrogram is scaled to a fixed decibel range instead.
+
+The CNN is four convolution blocks with batch normalisation and growing dropout, then global
+average pooling and a dense layer. It tunes itself over `cnn_training.SEARCH_SPACE` (base
+filters, dropout, dense units, learning rate, batch size): eight combinations are sampled,
+each trained on the training split only and scored on the validation split, then the best one
+is retrained for longer with early stopping and learning-rate reduction before the test split
+is scored once.
 
 ## Audio settings that affect accuracy
 

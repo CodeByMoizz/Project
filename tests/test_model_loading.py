@@ -36,3 +36,43 @@ def test_model_paths_follow_the_config():
 
     paths = python_model.model_paths()
     assert PYTHON_MODELS[ACTIVE_PYTHON_MODEL]["model_file"] in str(paths["model"])
+
+
+def test_every_configured_model_declares_a_kind():
+    from config.config import PYTHON_MODELS
+
+    for name, settings in PYTHON_MODELS.items():
+        assert settings["kind"] in ("features", "spectrogram"), name
+
+
+def test_spectrogram_models_declare_no_scaler():
+    from config.config import PYTHON_MODELS
+
+    for name, settings in PYTHON_MODELS.items():
+        if settings["kind"] == "spectrogram":
+            assert settings.get("scaler_file") is None, name
+
+
+def test_model_paths_handle_a_missing_scaler(monkeypatch):
+    import config.config as config
+    from src import python_model
+
+    monkeypatch.setattr(config, "ACTIVE_PYTHON_MODEL", "cnn")
+    monkeypatch.setattr(python_model, "ACTIVE_PYTHON_MODEL", "cnn")
+
+    paths = python_model.model_paths()
+    assert paths["scaler"] is None
+    assert "cnn_model.keras" in str(paths["model"])
+
+
+def test_status_of_an_untrained_spectrogram_model(monkeypatch):
+    import config.config as config
+    from src import python_model
+
+    monkeypatch.setattr(config, "ACTIVE_PYTHON_MODEL", "cnn")
+    monkeypatch.setattr(python_model, "ACTIVE_PYTHON_MODEL", "cnn")
+
+    status = python_model.model_status()
+    # No CNN is trained yet, so this must report cleanly rather than raise.
+    assert status["available"] is False
+    assert "cnn" in status["message"]

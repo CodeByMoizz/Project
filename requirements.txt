@@ -10,3 +10,6 @@ xgboost==3.4.1
 joblib==1.6.0
 matplotlib==3.11.2
 pytest==9.1.1
+
+# only needed for the CNN model
+tensorflow==2.16.2
