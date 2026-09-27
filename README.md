@@ -274,6 +274,32 @@ The two models never see each other's output: the Python model runs on the serve
 audio alone, and the GTM model runs in the browser from the microphone stream alone. The
 Python prediction is never sent to the browser before the GTM result is posted.
 
+## Figures for the report
+
+Every training run writes its figures to `reports/plots/` as PNG files, and the last cell of
+each notebook displays them inline so they can be saved straight into the report.
+
+| Figure | Per model | What it shows |
+|---|---|---|
+| `<model>_overall_metrics.png` | yes | Accuracy, precision, recall, F1 and macro F1, with the SRS targets drawn on |
+| `<model>_confusion_matrix.png` | yes | Confusion matrix as clip counts |
+| `<model>_confusion_matrix_normalised.png` | yes | The same matrix as a share of each true class, which is the per-class recall |
+| `<model>_per_class_metrics.png` | yes | Precision, recall and F1 for all ten classes |
+| `<model>_critical_recall.png` | yes | Recall on the five critical classes against the 0.85 target, red when it falls short |
+| `<model>_validation_vs_test.png` | yes | Validation beside test, to show how well it generalises |
+| `<model>_noise_robustness.png` | when measured | Accuracy as noise is added to the test clips |
+| `cnn_training_curves.png` | CNN | Loss and accuracy per epoch, training against validation |
+| `cnn_hyperparameter_search.png` | CNN | What each sampled candidate scored on validation |
+| `model_comparison.png` | once | Every trained model compared on accuracy and macro F1 |
+| `dataset_distribution.png` | once | Clips per class and per split |
+| `example_spectrograms.png` | once | One log-mel spectrogram per class, what the CNN actually reads |
+
+To rebuild every figure from the saved metrics files without retraining anything:
+
+```bash
+python src/plots.py
+```
+
 ## The two kinds of model
 
 | Kind | Models | Input | Built by |

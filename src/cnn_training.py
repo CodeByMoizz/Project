@@ -306,7 +306,7 @@ def save_model(model):
 
 
 def save_metrics(y_test, test_predictions, y_val, val_predictions, encoder,
-                 best_params, best_validation, search_results, epochs_run):
+                 best_params, best_validation, search_results, epochs_run, history=None):
     os.makedirs(METRICS_DIR, exist_ok=True)
 
     settings = PYTHON_MODELS[MODEL_NAME]
@@ -326,6 +326,8 @@ def save_metrics(y_test, test_predictions, y_val, val_predictions, encoder,
         ),
         "search_results": search_results,
         "epochs_run": epochs_run,
+        # Per-epoch curves, so the training run can be plotted for the report.
+        "history": history or {},
         "noise_robustness": {},
     }
 
@@ -442,6 +444,7 @@ def run_training(use_augmented=True, use_cache=True, candidates=SEARCH_CANDIDATE
     metrics = save_metrics(
         y_test_encoded, test_predictions, y_val_encoded, val_predictions,
         encoder, best_params, best_validation, search_results, epochs_run,
+        history={key: [float(v) for v in values] for key, values in history.history.items()},
     )
 
     print("\ntest results")
@@ -452,5 +455,12 @@ def run_training(use_augmented=True, use_cache=True, candidates=SEARCH_CANDIDATE
     for class_label, value in metrics["critical_recall"].items():
         flag = "" if value >= 0.85 else "   <- below the 0.85 target"
         print(f"    {class_label:24} {value}{flag}")
+
+    try:
+        from src import plots
+        plots.make_plots(metrics, MODEL_NAME)
+        plots.plot_class_spectrograms()
+    except Exception as error:
+        print("could not draw the plots:", error)
 
     return model
