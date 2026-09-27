@@ -33,3 +33,4 @@ gtm_model/metadata.json
 gtm_upload/
 gtm_upload.zip
 gtm_playback/
+*.npz
