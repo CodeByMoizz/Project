@@ -522,7 +522,7 @@ def run_training(
         robustness = noise_robustness(model, scaler, encoder)
 
     save_model(model_name, model, scaler, encoder)
-    save_metrics(
+    metrics = save_metrics(
         model_name,
         y_test,
         test_predictions,
@@ -534,5 +534,12 @@ def run_training(
         robustness=robustness,
         search_notes=search_notes,
     )
+
+    # Figures for the report. A failing figure never fails the training run.
+    try:
+        from src import plots
+        plots.make_plots(metrics, model_name)
+    except Exception as error:
+        print("could not draw the plots:", error)
 
     return model
