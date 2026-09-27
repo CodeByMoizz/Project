@@ -5,7 +5,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # Change this one line to switch the active Python model after training.
 # It must match a key in PYTHON_MODELS below.
-ACTIVE_PYTHON_MODEL = "random_forest"
+ACTIVE_PYTHON_MODEL = "xgboost"
 
 PYTHON_MODELS = {
     "random_forest": {
@@ -60,8 +60,18 @@ SECRET_KEY = os.environ.get("SONICSENTINEL_SECRET_KEY", "sonicsentinel-dev-key")
 # Audio settings. These must stay the same for training and for inference,
 # because the feature vector changes if they do.
 TARGET_SAMPLE_RATE = 16000
-SEGMENT_DURATION_SEC = 2.0
+
+# 3 seconds, because nearly every dataset clip is exactly 3 seconds long. At the
+# old 2 seconds a third of each clip was thrown away, which cost about 3 points
+# of validation accuracy.
+SEGMENT_DURATION_SEC = 3.0
 SILENCE_TOP_DB = 30
+
+# Noise reduction is available in audio_preprocessing/preprocessing.py and can be
+# switched back on here, but it is off by default: measured on the validation
+# split it lost about 2 points of accuracy, because subtracting an estimated
+# noise floor also removes part of a quiet event.
+APPLY_NOISE_REDUCTION = False
 
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 MAX_BATCH_FILES = 20

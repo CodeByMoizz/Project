@@ -9,9 +9,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from audio_preprocessing.preprocessing import prepare_segments
 from config.config import TARGET_SAMPLE_RATE
 
-N_MFCC = 13
+N_MFCC = 20
 N_MELS = 40
-N_CHROMA = 12
+N_CONTRAST_BANDS = 7
 
 
 def get_mean_std(feature_array):
@@ -31,6 +31,15 @@ def extract_mfcc(y, sr, n_mfcc=N_MFCC):
     return get_mean_std(mfcc)
 
 
+# How fast the MFCCs change over time. This is what separates a short burst like
+# a gunshot from a steady sound like a siren, which look similar on averages
+# alone.
+def extract_mfcc_delta(y, sr, n_mfcc=N_MFCC):
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
+    delta = librosa.feature.delta(mfcc)
+    return get_mean_std(delta)
+
+
 def extract_mel_spectrogram(y, sr, n_mels=N_MELS):
     mel = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels)
     mel_db = librosa.power_to_db(mel)
@@ -42,14 +51,27 @@ def extract_chroma(y, sr):
     return get_mean_std(chroma)
 
 
+# The gap between peaks and valleys in each frequency band. Useful for telling
+# tonal sounds such as a horn from broadband ones such as breaking glass.
+def extract_spectral_contrast(y, sr):
+    contrast = librosa.feature.spectral_contrast(y=y, sr=sr)
+    return get_mean_std(contrast)
+
+
 def extract_zcr(y):
     zcr = librosa.feature.zero_crossing_rate(y)
     return float(np.mean(zcr)), float(np.std(zcr))
 
 
 def extract_rms(y):
-    rms = librosa.feature.rms(y=y)
-    return float(np.mean(rms)), float(np.std(rms))
+    rms = librosa.feature.rms(y=y)[0]
+    mean = float(np.mean(rms))
+    peak = float(np.max(rms))
+
+    # Crest factor: how far the loudest moment stands above the average one.
+    crest = peak / (mean + 1e-9)
+
+    return mean, float(np.std(rms)), peak, crest
 
 
 def extract_spectral_centroid(y, sr):
@@ -67,18 +89,14 @@ def extract_spectral_rolloff(y, sr):
     return float(np.mean(rolloff)), float(np.std(rolloff))
 
 
+def extract_spectral_flatness(y):
+    flatness = librosa.feature.spectral_flatness(y=y)
+    return float(np.mean(flatness)), float(np.std(flatness))
+
+
 def extract_onset_strength(y, sr):
-    onset_env = librosa.onset.onset_strength(y=y, sr=sr)
-    return float(np.mean(onset_env)), float(np.std(onset_env))
-
-
-def extract_tempo(y, sr):
-    tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
-    # librosa returns a scalar on some versions and a 1-element array on others
-    tempo = np.atleast_1d(tempo)
-    if len(tempo) == 0:
-        return 0.0
-    return float(tempo[0])
+    onset = librosa.onset.onset_strength(y=y, sr=sr)
+    return float(np.mean(onset)), float(np.std(onset)), float(np.max(onset))
 
 
 # Every feature vector in the project is built here, so training and inference
@@ -96,19 +114,27 @@ def extract_features_from_samples(y, sr=TARGET_SAMPLE_RATE):
     mfcc_mean, mfcc_std = extract_mfcc(y, sr)
     add_to_dict(features, "mfcc", mfcc_mean, mfcc_std)
 
+    delta_mean, delta_std = extract_mfcc_delta(y, sr)
+    add_to_dict(features, "mfcc_delta", delta_mean, delta_std)
+
     mel_mean, mel_std = extract_mel_spectrogram(y, sr)
     add_to_dict(features, "mel", mel_mean, mel_std)
 
     chroma_mean, chroma_std = extract_chroma(y, sr)
     add_to_dict(features, "chroma", chroma_mean, chroma_std)
 
+    contrast_mean, contrast_std = extract_spectral_contrast(y, sr)
+    add_to_dict(features, "contrast", contrast_mean, contrast_std)
+
     zcr_mean, zcr_std = extract_zcr(y)
     features["zcr_mean"] = zcr_mean
     features["zcr_std"] = zcr_std
 
-    rms_mean, rms_std = extract_rms(y)
+    rms_mean, rms_std, rms_peak, rms_crest = extract_rms(y)
     features["rms_mean"] = rms_mean
     features["rms_std"] = rms_std
+    features["rms_peak"] = rms_peak
+    features["rms_crest"] = rms_crest
 
     centroid_mean, centroid_std = extract_spectral_centroid(y, sr)
     features["spectral_centroid_mean"] = centroid_mean
@@ -122,11 +148,14 @@ def extract_features_from_samples(y, sr=TARGET_SAMPLE_RATE):
     features["spectral_rolloff_mean"] = rolloff_mean
     features["spectral_rolloff_std"] = rolloff_std
 
-    onset_mean, onset_std = extract_onset_strength(y, sr)
+    flatness_mean, flatness_std = extract_spectral_flatness(y)
+    features["spectral_flatness_mean"] = flatness_mean
+    features["spectral_flatness_std"] = flatness_std
+
+    onset_mean, onset_std, onset_peak = extract_onset_strength(y, sr)
     features["onset_strength_mean"] = onset_mean
     features["onset_strength_std"] = onset_std
-
-    features["tempo"] = extract_tempo(y, sr)
+    features["onset_strength_peak"] = onset_peak
 
     return features
 

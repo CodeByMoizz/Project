@@ -8,6 +8,7 @@ import soundfile as sf
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from config.config import (
+    APPLY_NOISE_REDUCTION,
     SEGMENT_DURATION_SEC,
     SILENCE_TOP_DB,
     TARGET_SAMPLE_RATE,
@@ -138,12 +139,12 @@ def save_processed_audio(samples, sr, output_path):
 
 # The one preprocessing entry point. Everything that needs model-ready audio
 # calls this, so uploads, live windows and dataset files are treated the same.
-def prepare_segments(file_path, apply_noise_reduction=True):
+def prepare_segments(file_path, apply_noise_reduction=APPLY_NOISE_REDUCTION):
     samples, sr = load_audio(file_path)
     return prepare_segments_from_samples(samples, sr, apply_noise_reduction)
 
 
-def prepare_segments_from_samples(samples, sr, apply_noise_reduction=True):
+def prepare_segments_from_samples(samples, sr, apply_noise_reduction=APPLY_NOISE_REDUCTION):
     samples = convert_to_mono(samples)
     samples = np.nan_to_num(samples)
     samples, sr = resample_audio(samples, sr)
@@ -160,7 +161,7 @@ def prepare_segments_from_samples(samples, sr, apply_noise_reduction=True):
     return fixed_segments, sr, segment_info
 
 
-def preprocess_pipeline(file_path, output_dir="data/processed", apply_noise_reduction=True):
+def preprocess_pipeline(file_path, output_dir="data/processed", apply_noise_reduction=APPLY_NOISE_REDUCTION):
     segments, sr, _ = prepare_segments(file_path, apply_noise_reduction)
 
     base_name = os.path.splitext(os.path.basename(file_path))[0]

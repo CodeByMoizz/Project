@@ -239,7 +239,7 @@ Start the app and open the Reports page — it lists every model that has a metr
 with accuracy, macro F1, precision and recall. Then set one line in `config/config.py`:
 
 ```python
-ACTIVE_PYTHON_MODEL = "random_forest"
+ACTIVE_PYTHON_MODEL = "xgboost"
 ```
 
 Valid values: `random_forest`, `svm`, `xgboost`, `logistic_regression`. No other file names
@@ -267,6 +267,18 @@ stores it and compares it with the Python prediction.
 The two models never see each other's output: the Python model runs on the server from the
 audio alone, and the GTM model runs in the browser from the microphone stream alone. The
 Python prediction is never sent to the browser before the GTM result is posted.
+
+## Audio settings that affect accuracy
+
+Three settings in `config/config.py` were chosen by measuring on the validation split, not
+by guesswork. Changing any of them means retraining every model, because the feature vector
+changes.
+
+| Setting | Value | Why |
+|---|---|---|
+| `SEGMENT_DURATION_SEC` | 3.0 | Nearly every dataset clip is exactly 3 seconds. At 2 seconds a third of each clip was discarded, costing about 3 points of accuracy. |
+| `APPLY_NOISE_REDUCTION` | False | Subtracting an estimated noise floor also removed part of quiet events, costing about 2 points. The function is still in `audio_preprocessing/preprocessing.py` and this flag switches it back on. |
+| feature set | 215 values | MFCC 20 plus deltas, mel 40, chroma, spectral contrast, flatness, crest factor and onset peak. The deltas and contrast are what separate a short burst such as a gunshot from a steady sound such as a siren. Worth about 3 points over the original 143. |
 
 ## Alert rules
 

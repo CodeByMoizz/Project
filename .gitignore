@@ -1,0 +1,35 @@
+/audio_dataset
+
+# virtual environment
+.venv/
+venv/
+
+# python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# generated at runtime
+data/uploads/
+data/segments/
+data/processed/
+data/metadata/*.csv
+static/visuals/
+database/sonicsentinel.db
+
+# trained models are too large for git, the metrics files in reports/ are kept
+python_models/*.pkl
+python_models/*.keras
+python_models/*.h5
+
+# exported Teachable Machine model
+gtm_model/*.bin
+gtm_model/model.json
+gtm_model/metadata.json
+
+# clips prepared for Teachable Machine upload and playback
+gtm_upload/
+gtm_upload.zip
+gtm_playback/
