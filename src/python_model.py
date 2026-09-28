@@ -8,26 +8,41 @@ from config.config import (
     CLASSES,
     LABEL_ENCODER_FILE,
     PYTHON_MODEL_DIR,
-    active_model_config,
+    PYTHON_MODELS,
+    selected_model_name,
 )
 from feature_extraction.features import (
     FEATURE_VECTOR_LENGTH,
     extract_features_from_samples,
     features_to_vector,
 )
-from feature_extraction.embeddings import EMBEDDING_LENGTH, build_embedding
+from feature_extraction.embeddings import (
+    EMBEDDING_LENGTH,
+    EMBEDDING_MEAN_LENGTH,
+    build_embedding,
+)
 from feature_extraction.spectrogram import build_spectrogram
 
 # Loaded once and kept, because loading a model per request is slow.
 _loaded = {}
 
 
+# selection.json wins when src/yamnet_transfer.py --activate has written one,
+# otherwise the ACTIVE_PYTHON_MODEL default in config.py stands.
+def active_model_name():
+    return selected_model_name() or ACTIVE_PYTHON_MODEL
+
+
+def active_settings():
+    return PYTHON_MODELS[active_model_name()]
+
+
 def model_kind():
-    return active_model_config().get("kind", "features")
+    return active_settings().get("kind", "features")
 
 
 def model_paths():
-    settings = active_model_config()
+    settings = active_settings()
 
     scaler_file = settings.get("scaler_file")
 
@@ -51,10 +66,10 @@ def model_status():
     if missing:
         return {
             "available": False,
-            "name": ACTIVE_PYTHON_MODEL,
+            "name": active_model_name(),
             "version": paths["version"],
             "message": (
-                f"The '{ACTIVE_PYTHON_MODEL}' model is not trained yet. "
+                f"The '{active_model_name()}' model is not trained yet. "
                 f"Missing file(s): {', '.join(str(paths[name].name) for name in missing)}. "
                 f"Put the trained files in {PYTHON_MODEL_DIR.name}/ and reload."
             ),
@@ -62,14 +77,14 @@ def model_status():
 
     return {
         "available": True,
-        "name": ACTIVE_PYTHON_MODEL,
+        "name": active_model_name(),
         "version": paths["version"],
-        "message": f"Active model: {ACTIVE_PYTHON_MODEL} ({paths['version']}).",
+        "message": f"Active model: {active_model_name()} ({paths['version']}).",
     }
 
 
 def load_model():
-    if _loaded.get("name") == ACTIVE_PYTHON_MODEL:
+    if _loaded.get("name") == active_model_name():
         return _loaded
 
     status = model_status()
@@ -91,6 +106,14 @@ def load_model():
 
         if model is None:
             return None
+    elif kind == "embedding_sklearn":
+        # The pipeline carries its own scaler, so only the model is loaded.
+        try:
+            model = joblib.load(paths["model"])
+        except Exception:
+            return None
+
+        scaler = None
     else:
         try:
             model = joblib.load(paths["model"])
@@ -108,7 +131,7 @@ def load_model():
     _loaded.clear()
     _loaded.update(
         {
-            "name": ACTIVE_PYTHON_MODEL,
+            "name": active_model_name(),
             "version": paths["version"],
             "kind": kind,
             "model": model,
@@ -220,6 +243,25 @@ def predict_from_embedding(loaded, samples, sr):
         return None
 
 
+def predict_from_embedding_sklearn(loaded, samples, sr):
+    embedding = build_embedding(samples, sr)
+
+    if embedding is None or len(embedding) != EMBEDDING_LENGTH:
+        return None
+
+    model = loaded["model"]
+
+    # The head may have been trained on the mean half only, so the embedding is
+    # sliced exactly as it was at training time.
+    if getattr(model, "feature_view_", "combined") == "mean":
+        embedding = embedding[:EMBEDDING_MEAN_LENGTH]
+
+    try:
+        return model.predict_proba([embedding])[0]
+    except Exception:
+        return None
+
+
 # Returns confidence scores for all ten classes, or None when no model is
 # loaded, so callers can show a message instead of failing.
 def get_prediction(samples, sr):
@@ -232,6 +274,8 @@ def get_prediction(samples, sr):
         probabilities = predict_from_spectrogram(loaded, samples, sr)
     elif loaded.get("kind") == "embedding":
         probabilities = predict_from_embedding(loaded, samples, sr)
+    elif loaded.get("kind") == "embedding_sklearn":
+        probabilities = predict_from_embedding_sklearn(loaded, samples, sr)
     else:
         probabilities = predict_from_features(loaded, samples, sr)
 

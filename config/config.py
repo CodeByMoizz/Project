@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -56,6 +57,16 @@ PYTHON_MODELS = {
         "scaler_file": None,
         "metrics_file": "yamnet_metrics.json",
         "version": "yamnet-v1",
+    },
+    # The same frozen YAMNet embeddings, but with a scikit-learn head chosen on
+    # the validation split by src/yamnet_transfer.py. The pipeline carries its
+    # own scaler, so there is no separate scaler file.
+    "yamnet_transfer": {
+        "kind": "embedding_sklearn",
+        "model_file": "yamnet_transfer.joblib",
+        "scaler_file": None,
+        "metrics_file": "yamnet_transfer_metrics.json",
+        "version": "yamnet-transfer-v1",
     },
 }
 
@@ -176,5 +187,22 @@ def display_name(class_id):
     return CLASS_NAMES.get(class_id, class_id)
 
 
+# src/yamnet_transfer.py --activate writes this file. It overrides the default
+# above without editing this module, and deleting it restores the default.
+SELECTION_FILE = PYTHON_MODEL_DIR / "selection.json"
+
+
+def selected_model_name():
+    """The model named by selection.json, or None when there is no valid
+    selection and the ACTIVE_PYTHON_MODEL default should stand."""
+    try:
+        with open(SELECTION_FILE) as handle:
+            chosen = json.load(handle).get("selected")
+    except (OSError, ValueError):
+        return None
+
+    return chosen if chosen in PYTHON_MODELS else None
+
+
 def active_model_config():
-    return PYTHON_MODELS[ACTIVE_PYTHON_MODEL]
+    return PYTHON_MODELS[selected_model_name() or ACTIVE_PYTHON_MODEL]

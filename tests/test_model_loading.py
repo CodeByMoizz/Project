@@ -42,7 +42,9 @@ def test_every_configured_model_declares_a_kind():
     from config.config import PYTHON_MODELS
 
     for name, settings in PYTHON_MODELS.items():
-        assert settings["kind"] in ("features", "spectrogram", "embedding"), name
+        assert settings["kind"] in (
+            "features", "spectrogram", "embedding", "embedding_sklearn",
+        ), name
 
 
 def test_spectrogram_models_declare_no_scaler():

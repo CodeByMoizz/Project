@@ -15,6 +15,15 @@ YAMNET_DIR = PYTHON_MODEL_DIR / "yamnet"
 # We pool the frames with mean and max, so the length is 1024 + 1024.
 EMBEDDING_LENGTH = 2048
 
+# The mean half on its own. Some heads do better without the max half, so it is
+# named here rather than hard-coded as a magic 1024 at every call site.
+EMBEDDING_MEAN_LENGTH = 1024
+
+# Identifies the feature definition: the pretrained model, the pooling above and
+# the preprocessing that feeds them. Bump it whenever any of those change, so a
+# stale cache is rejected instead of silently reused.
+FEATURE_VERSION = "yamnet1-meanmax-v1"
+
 # Loaded once and kept, because loading YAMNet is slow.
 _yamnet = {}
 

@@ -44,10 +44,18 @@ def test_pages_load(client):
         assert response.status_code == 200, path
 
 
-def test_signed_out_user_is_redirected():
+def test_signed_out_user_gets_the_landing_page():
     application.app.config["TESTING"] = True
     anonymous = application.app.test_client()
-    assert anonymous.get("/").status_code == 302
+    response = anonymous.get("/")
+    assert response.status_code == 200
+    assert b"lp-hero" in response.data
+
+
+def test_signed_out_upload_is_redirected():
+    application.app.config["TESTING"] = True
+    anonymous = application.app.test_client()
+    assert anonymous.post("/").status_code == 302
 
 
 def test_unknown_page_gives_a_friendly_404(client):
