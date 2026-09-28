@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SonicSentinel AI · Acoustic event detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}">
+</head>
+<body>
+
+<header class="lp-bar">
+    <a class="lp-logo" href="{{ url_for('dashboard') }}">SonicSentinel <span>AI</span></a>
+    <nav class="lp-bar-links">
+        <a href="#how">How it works</a>
+        <a href="#models">Two models</a>
+        <a href="#faq">FAQ</a>
+    </nav>
+    <div class="lp-bar-actions">
+        <a class="lp-btn lp-btn-ghost" href="{{ url_for('login') }}">Sign in</a>
+        <a class="lp-btn lp-btn-solid" href="{{ url_for('register') }}">Create account</a>
+    </div>
+</header>
+
+<!-- ───────────────────────── hero ───────────────────────── -->
+<section class="lp-hero">
+    <div class="lp-hero-glow" aria-hidden="true"></div>
+
+    <div class="lp-hero-inner">
+        <div class="lp-hero-copy">
+            <p class="lp-eyebrow lp-rise" style="--d:0s">Acoustic threat detection</p>
+            <h1 class="lp-rise" style="--d:.08s">
+                Hear what cameras<br><span class="lp-shine">miss.</span>
+            </h1>
+            <p class="lp-lede lp-rise" style="--d:.16s">
+                SonicSentinel listens to a live microphone or an uploaded recording,
+                classifies what it hears across ten safety-critical sound classes, and
+                raises an alert when something demands attention.
+            </p>
+
+            <div class="lp-cta lp-rise" style="--d:.24s">
+                <a class="lp-btn lp-btn-solid lp-btn-lg" href="{{ url_for('register') }}">Get started</a>
+                <a class="lp-btn lp-btn-line lp-btn-lg" href="{{ url_for('login') }}">Sign in</a>
+            </div>
+
+            <p class="lp-note lp-rise" style="--d:.32s">
+                Runs locally · No audio leaves your machine
+            </p>
+        </div>
+
+        <!-- decorative, CSS-only -->
+        <div class="lp-scope lp-rise" style="--d:.2s" aria-hidden="true">
+            <div class="lp-radar">
+                <span class="lp-ring"></span>
+                <span class="lp-ring"></span>
+                <span class="lp-ring"></span>
+                <span class="lp-core"></span>
+            </div>
+            <div class="lp-eq">
+                <i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i>
+                <i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i>
+                <i style="--i:7"></i><i style="--i:8"></i><i style="--i:9"></i>
+                <i style="--i:10"></i><i style="--i:11"></i><i style="--i:12"></i>
+                <i style="--i:13"></i><i style="--i:14"></i><i style="--i:15"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- class marquee -->
+    <div class="lp-marquee" aria-hidden="true">
+        <div class="lp-marquee-track">
+            {% for pass_index in [0, 1] %}
+                {% for name in classes %}
+                <span class="lp-chip">{{ display_name(name) }}</span>
+                {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- ───────────────────────── features ───────────────────────── -->
+<section class="lp-section">
+    <p class="lp-kicker">What it does</p>
+    <h2 class="lp-h2">From sound to decision</h2>
+
+    <div class="lp-grid">
+        <article class="lp-card">
+            <span class="lp-ico lp-ico-wave" aria-hidden="true"></span>
+            <h3>Live monitoring</h3>
+            <p>Analyses the microphone in rolling segments, so a detection appears while
+               the sound is still happening rather than after the fact.</p>
+        </article>
+
+        <article class="lp-card">
+            <span class="lp-ico lp-ico-file" aria-hidden="true"></span>
+            <h3>Upload and review</h3>
+            <p>Drop in a recording and every segment is classified, stored and made
+               searchable, with the waveform and spectrogram kept alongside it.</p>
+        </article>
+
+        <article class="lp-card">
+            <span class="lp-ico lp-ico-bell" aria-hidden="true"></span>
+            <h3>Rules and alerts</h3>
+            <p>Severity, repeat counts and configurable rules decide what becomes an
+               alert, what is logged quietly, and what a human should look at.</p>
+        </article>
+
+        <article class="lp-card">
+            <span class="lp-ico lp-ico-eye" aria-hidden="true"></span>
+            <h3>Manual review</h3>
+            <p>Anything uncertain is queued for a person to confirm or correct, and the
+               decision is written back into the event history.</p>
+        </article>
+    </div>
+</section>
+
+<!-- ───────────────────────── how it works ───────────────────────── -->
+<section class="lp-section lp-section-alt" id="how">
+    <p class="lp-kicker">How it works</p>
+    <h2 class="lp-h2">Three steps, every time</h2>
+
+    <ol class="lp-steps">
+        <li class="lp-step">
+            <span class="lp-step-num">1</span>
+            <h3>Capture</h3>
+            <p>Audio arrives from the live microphone or an upload and is split into
+               fixed-length segments.</p>
+        </li>
+        <li class="lp-step">
+            <span class="lp-step-num">2</span>
+            <h3>Classify</h3>
+            <p>Each segment is scored across all ten classes by two models that never
+               see each other's answer.</p>
+        </li>
+        <li class="lp-step">
+            <span class="lp-step-num">3</span>
+            <h3>Decide</h3>
+            <p>Agreement, confidence and your rules set the severity, the alert and
+               whether a human is asked to check.</p>
+        </li>
+    </ol>
+</section>
+
+<!-- ───────────────────────── two models ───────────────────────── -->
+<section class="lp-section" id="models">
+    <p class="lp-kicker">Cross-checking</p>
+    <h2 class="lp-h2">Two models, one verdict</h2>
+    <p class="lp-sub">
+        A server-side model and a browser-side model classify the same audio
+        independently. Where they agree, confidence is high. Where they disagree,
+        the event is flagged rather than quietly guessed at.
+    </p>
+
+    <div class="lp-vs">
+        <div class="lp-vs-card">
+            <p class="lp-vs-tag">Server</p>
+            <h3>Python model</h3>
+            <p>Runs on extracted audio features, stores its full score vector with every
+               detection.</p>
+        </div>
+
+        <div class="lp-vs-mid" aria-hidden="true">
+            <span class="lp-vs-line"></span>
+            <span class="lp-vs-dot"></span>
+            <span class="lp-vs-line"></span>
+        </div>
+
+        <div class="lp-vs-card">
+            <p class="lp-vs-tag">Browser</p>
+            <h3>Teachable Machine</h3>
+            <p>Runs in the page on the same audio, giving a second opinion that is never
+               shown the first one.</p>
+        </div>
+    </div>
+
+    <div class="lp-states">
+        <span class="lp-state lp-state-ok">Agreement</span>
+        <span class="lp-state lp-state-warn">Partial match</span>
+        <span class="lp-state lp-state-bad">Disagreement</span>
+        <span class="lp-state lp-state-idle">Awaiting GTM</span>
+    </div>
+</section>
+
+<!-- ───────────────────────── faq ───────────────────────── -->
+<section class="lp-section lp-section-alt" id="faq">
+    <p class="lp-kicker">Questions</p>
+    <h2 class="lp-h2">Before you start</h2>
+
+    <div class="lp-faq">
+        <details>
+            <summary>Which sounds can it recognise?<span class="lp-caret" aria-hidden="true"></span></summary>
+            <p>Ten classes:
+               {% for name in classes %}{{ display_name(name) }}{% if not loop.last %}, {% endif %}{% endfor %}.
+               Every segment is scored against all ten, not just the winner.</p>
+        </details>
+        <details>
+            <summary>Does my audio get uploaded anywhere?<span class="lp-caret" aria-hidden="true"></span></summary>
+            <p>No. The server runs on your own machine and the browser model runs inside
+               your own page. Recordings and detections stay in the local database.</p>
+        </details>
+        <details>
+            <summary>What happens when the two models disagree?<span class="lp-caret" aria-hidden="true"></span></summary>
+            <p>The event is marked as a disagreement and routed to manual review instead of
+               being reported as a confident detection.</p>
+        </details>
+        <details>
+            <summary>Who can see what?<span class="lp-caret" aria-hidden="true"></span></summary>
+            <p>Accounts carry a role — admin, operator, reviewer or maintenance — and the
+               pages, actions and exports available to you follow from it.</p>
+        </details>
+    </div>
+</section>
+
+<!-- ───────────────────────── final cta ───────────────────────── -->
+<section class="lp-final">
+    <div class="lp-final-inner">
+        <h2>Start listening</h2>
+        <p>Create an account and run your first recording through in a couple of minutes.</p>
+        <div class="lp-cta">
+            <a class="lp-btn lp-btn-solid lp-btn-lg" href="{{ url_for('register') }}">Create account</a>
+            <a class="lp-btn lp-btn-ghost lp-btn-lg" href="{{ url_for('login') }}">I already have one</a>
+        </div>
+    </div>
+</section>
+
+<footer class="lp-foot">
+    <p>SonicSentinel AI · AcousticX Intelligence · prototype for controlled testing only</p>
+</footer>
+
+</body>
+</html>

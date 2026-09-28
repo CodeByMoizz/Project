@@ -25,6 +25,7 @@ from config.config import (
     EVENT_STATUSES,
     GTM_MODEL_URL,
     GTM_MODEL_VERSION,
+    LABEL_ENCODER_FILE,
     MAX_BATCH_FILES,
     MAX_UPLOAD_BYTES,
     ROLES,
@@ -65,19 +66,67 @@ def gtm_ready():
     return bool(GTM_MODEL_URL) or os.path.exists(model_file)
 
 
+def encoder_classes():
+    import joblib
+
+    path = os.path.join("python_models", LABEL_ENCODER_FILE)
+    return [str(c) for c in joblib.load(path).classes_]
+
+
+# The browser model outputs one score per class in encoder order. If that order
+# ever drifts from label_encoder.pkl every comparison downstream is wrong, so it
+# is checked here instead of being assumed.
+def gtm_label_check():
+    meta = os.path.join("gtm_model", "metadata.json")
+
+    if not os.path.exists(meta):
+        return None
+
+    try:
+        with open(meta) as handle:
+            labels = json.load(handle).get("labels")
+    except ValueError as error:
+        return f"gtm_model/metadata.json could not be read: {error}"
+
+    try:
+        expected = encoder_classes()
+    except Exception as error:
+        return f"label_encoder.pkl could not be read: {error}"
+
+    if labels != expected:
+        return (
+            "gtm_model/metadata.json labels do not match label_encoder.pkl. "
+            f"metadata: {labels}. encoder: {expected}."
+        )
+
+    return None
+
+
 def gtm_info():
     source = GTM_MODEL_URL or "/gtm_model/"
+    problem = gtm_label_check()
+
+    if problem:
+        message = problem
+    elif gtm_ready():
+        message = "The browser model is loaded in the browser."
+    else:
+        message = (
+            "No browser model found. Put model.json, the weight shard and "
+            "metadata.json in gtm_model/, or set the GTM_MODEL_URL environment variable."
+        )
+
+    try:
+        classes = encoder_classes()
+    except Exception:
+        classes = list(CLASSES)
 
     return {
-        "ready": gtm_ready(),
+        "ready": gtm_ready() and not problem,
         "source": source,
         "version": GTM_MODEL_VERSION,
-        "message": (
-            "The Teachable Machine model is loaded in the browser."
-            if gtm_ready()
-            else "No GTM model found. Export your Teachable Machine audio project as "
-            "TensorFlow.js into gtm_model/, or set the GTM_MODEL_URL environment variable."
-        ),
+        "classes": classes,
+        "message": message,
     }
 
 
@@ -224,8 +273,13 @@ def profile():
 def dashboard():
     user = current_user()
 
+    # A signed-out visitor gets the landing page rather than being pushed
+    # straight at the sign-in form.
     if user is None:
-        return redirect(url_for("login"))
+        if request.method == "POST":
+            return redirect(url_for("login"))
+
+        return render_template("landing.html", classes=CLASSES)
 
     results = []
     error_message = None

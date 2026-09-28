@@ -1,7 +1,7 @@
 {
   "model": "logistic_regression",
   "version": "lr-v1",
-  "trained_at": "2026-09-27 18:22:31",
+  "trained_at": "2026-09-28 07:35:13",
   "feature_vector_length": 215,
   "labels": [
     "aggression",
@@ -19,9 +19,13 @@
   "best_params": {
     "C": 0.1
   },
-  "best_validation_score": 0.7281,
+  "best_validation_score": 0.7257,
   "search": "full grid search over 5 combinations, selected on the validation split",
-  "noise_robustness": {},
+  "noise_robustness": {
+    "gaussian noise sd=0.005": 0.6247,
+    "gaussian noise sd=0.02": 0.5978,
+    "gaussian noise sd=0.05": 0.5079
+  },
   "accuracy": 0.6809,
   "precision": 0.6949,
   "recall": 0.6809,
@@ -219,11 +223,11 @@
     "glass_breaking": 0.8444
   },
   "validation": {
-    "accuracy": 0.732,
-    "precision": 0.7357,
-    "recall": 0.732,
-    "f1_score": 0.7318,
-    "macro_f1": 0.7281,
+    "accuracy": 0.7298,
+    "precision": 0.7333,
+    "recall": 0.7298,
+    "f1_score": 0.7294,
+    "macro_f1": 0.7257,
     "confusion_matrix": [
       [
         40,
@@ -252,10 +256,10 @@
       [
         1,
         2,
-        27,
+        26,
         1,
         0,
-        2,
+        3,
         3,
         7,
         0,
@@ -360,9 +364,9 @@
         "support": 45
       },
       "animal_sound": {
-        "precision": 0.6923,
-        "recall": 0.6,
-        "f1_score": 0.6429,
+        "precision": 0.6842,
+        "recall": 0.5778,
+        "f1_score": 0.6265,
         "support": 45
       },
       "background_noise": {
@@ -378,9 +382,9 @@
         "support": 45
       },
       "gunshot": {
-        "precision": 0.7442,
+        "precision": 0.7273,
         "recall": 0.7111,
-        "f1_score": 0.7273,
+        "f1_score": 0.7191,
         "support": 45
       },
       "machinery_fault": {

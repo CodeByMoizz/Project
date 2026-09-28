@@ -194,10 +194,11 @@
 <script>
     var GTM_READY = {{ 'true' if gtm.ready else 'false' }};
     var GTM_SOURCE = "{{ gtm.source }}";
+    var GTM_CLASSES = {{ gtm.classes | tojson }};
     var WINDOW_SECONDS = {{ segment_duration }};
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.5.4/dist/speech-commands.min.js"></script>
+<script src="{{ url_for('static', filename='js/logmel.js') }}"></script>
 <script src="{{ url_for('static', filename='js/gtm.js') }}"></script>
 <script src="{{ url_for('static', filename='js/live.js') }}"></script>
 {% endblock %}

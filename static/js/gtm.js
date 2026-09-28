@@ -1,35 +1,22 @@
-// The Teachable Machine audio model runs here, in the browser, on the same
-// microphone stream. It never receives the Python model's prediction, so the
-// two results are produced independently.
+// The browser model. A small CNN on log-mel spectrograms, loaded with
+// tf.loadLayersModel from gtm_model/. It never sees the Python model's
+// prediction, so the two results stay independent.
 
-var gtmRecognizer = null;
+var gtmModel = null;
 var gtmLabels = [];
 var gtmError = null;
+var gtmVersion = "";
 
-// The recognizer scores one 1-second window at a time, but a segment or an
-// uploaded clip is longer than that. The model was trained on the single
-// loudest second of each recording, so the honest question to ask it is "does
-// any second of this contain the event", not "what was the last second". Both
-// the live page and the upload page therefore keep the highest confidence each
-// class reached across the windows of the thing being scored, and the top class
-// is the argmax of that vector. Same merge, same policy, both places.
+var GTM_HOP = 0.5;
+
 var gtmLiveAggregate = null;
-
-var GTM_LISTEN_OPTIONS = {
-    includeSpectrogram: false,
-    probabilityThreshold: 0,
-    overlapFactor: 0.5,
-    invokeCallbackOnNoiseAndUnknown: true
-};
 
 
 function gtmModelUrls() {
     var base = GTM_SOURCE;
 
-    // The speech-commands loader rejects a scheme-less URL, so a project-root
-    // path such as "/gtm_model/" has to be resolved against the current page
-    // before it is handed over. An absolute GTM_MODEL_URL passes through
-    // unchanged.
+    // A scheme-less path such as "/gtm_model/" has to be resolved against the
+    // page before it is loaded. An absolute GTM_MODEL_URL passes through.
     function absolute(url) {
         return new URL(url, window.location.href).href;
     }
@@ -58,7 +45,7 @@ function gtmStatusText() {
         return "Not configured";
     }
 
-    if (gtmRecognizer) {
+    if (gtmModel) {
         return "Listening in browser";
     }
 
@@ -73,29 +60,53 @@ function loadGtmModel(onReady) {
         return;
     }
 
-    if (typeof speechCommands === "undefined") {
-        gtmError = "The Teachable Machine library could not be loaded.";
+    if (typeof tf === "undefined") {
+        gtmError = "TensorFlow.js could not be loaded.";
         onReady(false);
         return;
     }
 
     var urls = gtmModelUrls();
 
-    var recognizer = speechCommands.create(
-        "BROWSER_FFT",
-        undefined,
-        urls.model,
-        urls.metadata
-    );
+    fetch(urls.metadata).then(function (r) {
+        if (!r.ok) {
+            throw new Error("metadata.json is missing (" + r.status + ")");
+        }
+        return r.json();
+    }).then(function (meta) {
+        gtmLabels = meta.labels || [];
+        gtmVersion = meta.version || "";
 
-    recognizer.ensureModelLoaded().then(function () {
-        gtmRecognizer = recognizer;
-        gtmLabels = recognizer.wordLabels();
+        if (gtmLabels.length !== GTM_CLASSES.length) {
+            throw new Error("metadata.json has " + gtmLabels.length +
+                " labels, the app expects " + GTM_CLASSES.length);
+        }
+
+        for (var i = 0; i < gtmLabels.length; i++) {
+            if (gtmLabels[i] !== GTM_CLASSES[i]) {
+                throw new Error("label " + i + " is '" + gtmLabels[i] +
+                    "' but the app expects '" + GTM_CLASSES[i] + "'");
+            }
+        }
+
+        return tf.loadLayersModel(urls.model);
+    }).then(function (model) {
+        gtmModel = model;
         gtmError = null;
         onReady(true);
     }).catch(function (error) {
         gtmError = "The GTM model could not be loaded: " + error.message;
         onReady(false);
+    });
+}
+
+
+// One window in, ten scores out.
+function gtmPredict(samples) {
+    return tf.tidy(function () {
+        var f = lmFeatures(samples);
+        var batch = f.reshape([1, LM_FRAMES, LM_MELS, 1]);
+        return gtmModel.predict(batch).dataSync();
     });
 }
 
@@ -109,7 +120,6 @@ function newGtmAggregate() {
 }
 
 
-// Keeps the per-class maximum over every window merged into it.
 function mergeGtmWindow(aggregate, windowScores) {
     var scores = aggregate.scores || {};
 
@@ -132,7 +142,6 @@ function aggregateScores(aggregate) {
         return null;
     }
 
-    // A copy, so a later window cannot change a score set already handed out.
     var copy = {};
 
     for (var label in aggregate.scores) {
@@ -149,39 +158,81 @@ function aggregateScores(aggregate) {
 // Live monitoring
 // ---------------------------------------------------------------------------
 
+var gtmContext = null;
+var gtmStream = null;
+var gtmNode = null;
+var gtmRing = null;
+var gtmFilled = 0;
+var gtmSinceHop = 0;
+
+
 function startGtmListening() {
-    if (!gtmRecognizer) {
+    if (!gtmModel || gtmContext) {
         return;
     }
 
+    gtmRing = new Float32Array(LM_WIN);
+    gtmFilled = 0;
+    gtmSinceHop = 0;
     gtmLiveAggregate = newGtmAggregate();
 
-    gtmRecognizer.listen(function (result) {
-        mergeGtmWindow(gtmLiveAggregate, result.scores);
-        return Promise.resolve();
-    }, GTM_LISTEN_OPTIONS).catch(function (error) {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+        gtmStream = stream;
+        gtmContext = new AudioContext({ sampleRate: LM_SR });
+
+        var source = gtmContext.createMediaStreamSource(stream);
+        gtmNode = gtmContext.createScriptProcessor(4096, 1, 1);
+
+        gtmNode.onaudioprocess = function (event) {
+            var input = event.inputBuffer.getChannelData(0);
+
+            // Slide the ring buffer along by the block we just received.
+            gtmRing.copyWithin(0, input.length);
+            gtmRing.set(input, LM_WIN - input.length);
+
+            gtmFilled = Math.min(LM_WIN, gtmFilled + input.length);
+            gtmSinceHop = gtmSinceHop + input.length;
+
+            if (gtmFilled >= LM_WIN && gtmSinceHop >= LM_SR * GTM_HOP) {
+                gtmSinceHop = 0;
+                mergeGtmWindow(gtmLiveAggregate, gtmPredict(gtmRing));
+            }
+        };
+
+        source.connect(gtmNode);
+        gtmNode.connect(gtmContext.destination);
+    }).catch(function (error) {
         gtmError = "The GTM model could not use the microphone: " + error.message;
     });
 }
 
 
 function stopGtmListening() {
-    if (gtmRecognizer && gtmRecognizer.isListening()) {
-        gtmRecognizer.stopListening();
+    if (gtmNode) {
+        gtmNode.onaudioprocess = null;
+        gtmNode.disconnect();
+        gtmNode = null;
+    }
+
+    if (gtmStream) {
+        gtmStream.getTracks().forEach(function (t) { t.stop(); });
+        gtmStream = null;
+    }
+
+    if (gtmContext) {
+        gtmContext.close();
+        gtmContext = null;
     }
 
     gtmLiveAggregate = null;
 }
 
 
-// The highest confidence each class reached since the last reset.
 function latestGtmScores() {
     return aggregateScores(gtmLiveAggregate);
 }
 
 
-// Called once a segment has taken its scores, so the next segment aggregates
-// only its own windows.
 function resetGtmAggregate() {
     gtmLiveAggregate = newGtmAggregate();
 }
@@ -195,156 +246,82 @@ function latestGtmWindowCount() {
 // ---------------------------------------------------------------------------
 // Uploaded clips
 // ---------------------------------------------------------------------------
-//
-// An uploaded clip has no microphone behind it, but the model must still see
-// the spectrogram the library builds from a real AnalyserNode - recomputing
-// that by hand would drift. So the decoded audio is played into a MediaStream
-// and the recognizer is pointed at that stream instead of a microphone, which
-// is the only injection point the library offers. Everything after the stream
-// (AnalyserNode, fftSize, smoothing, frame assembly, the model) is the
-// library's own code, unchanged, and the windows are merged with the same
-// mergeGtmWindow used live.
-
-var GTM_WINDOW_SECONDS = 1.0;
-// The model was trained on the browser's 44100 Hz spectrogram; decoding at any
-// other rate would change every bin.
-var GTM_SAMPLE_RATE = 44100;
-var gtmClipQueue = Promise.resolve();
-
 
 // Scores the audio at url, or the [startSec, endSec) slice of it, and returns
 // {scores, windows} where scores holds the per-class maximum over the windows.
 function scoreAudioUrlWithGtm(url, startSec, endSec) {
-    function run() {
-        return runGtmOnUrl(url, startSec, endSec);
-    }
-
-    // Serialised: one recognizer, and listen() can only follow a stopListening().
-    gtmClipQueue = gtmClipQueue.then(run, run);
-
-    return gtmClipQueue;
-}
-
-
-function runGtmOnUrl(url, startSec, endSec) {
-    if (!gtmRecognizer) {
+    if (!gtmModel) {
         return Promise.reject(new Error("The GTM model is not loaded."));
     }
 
-    var context = new (window.AudioContext || window.webkitAudioContext)({
-        sampleRate: GTM_SAMPLE_RATE
-    });
-    var destination = context.createMediaStreamDestination();
+    var ctx = new AudioContext({ sampleRate: LM_SR });
 
-    if (!navigator.mediaDevices) {
-        navigator.mediaDevices = {};
-    }
-
-    var realGetUserMedia = navigator.mediaDevices.getUserMedia;
-    navigator.mediaDevices.getUserMedia = function () {
-        return Promise.resolve(destination.stream);
-    };
-
-    function restore() {
-        navigator.mediaDevices.getUserMedia = realGetUserMedia;
-    }
-
-    var aggregate = newGtmAggregate();
-    var clip = null;
-
-    return fetch(url).then(function (response) {
-        if (!response.ok) {
-            throw new Error("The clip could not be fetched (" + response.status + ").");
+    return fetch(url).then(function (r) {
+        if (!r.ok) {
+            throw new Error("The clip could not be fetched (" + r.status + ").");
         }
-
-        return response.arrayBuffer();
+        return r.arrayBuffer();
     }).then(function (raw) {
-        return context.decodeAudioData(raw);
-    }).then(function (decoded) {
-        clip = sliceAudioBuffer(context, decoded, startSec, endSec);
-        return context.resume();
-    }).then(function () {
-        return gtmRecognizer.listen(function (result) {
-            mergeGtmWindow(aggregate, result.scores);
-            return Promise.resolve();
-        }, GTM_LISTEN_OPTIONS);
-    }).then(function () {
-        var source = context.createBufferSource();
-        source.buffer = clip;
-        source.connect(destination);
+        return ctx.decodeAudioData(raw);
+    }).then(function (buffer) {
+        var samples = mono(buffer);
+        samples = slice(samples, startSec, endSec);
 
-        // A short lead lets the extractor settle, and a tail lets the final
-        // window covering the end of the clip be scored.
-        var lead = 0.3;
-        var tail = GTM_WINDOW_SECONDS + 0.3;
-        source.start(context.currentTime + lead);
+        var count = windowCount(samples.length);
+        var aggregate = newGtmAggregate();
 
-        var waitMs = (lead + source.buffer.duration + tail) * 1000;
-
-        return new Promise(function (resolve) {
-            setTimeout(resolve, waitMs);
+        lmWindows(samples, count).forEach(function (w) {
+            mergeGtmWindow(aggregate, gtmPredict(w));
         });
-    }).then(function () {
-        return finishGtmClip(context, restore, aggregate);
+
+        return ctx.close().catch(function () { return null; }).then(function () {
+            return { scores: aggregateScores(aggregate), windows: aggregate.windows };
+        });
     }).catch(function (error) {
-        return finishGtmClip(context, restore, aggregate).then(function () {
+        return ctx.close().catch(function () { return null; }).then(function () {
             throw error;
         });
     });
 }
 
 
-function finishGtmClip(context, restore, aggregate) {
-    if (gtmRecognizer && gtmRecognizer.isListening()) {
-        try {
-            gtmRecognizer.stopListening();
-        } catch (error) {
-            // already stopped
+function mono(buffer) {
+    var out = new Float32Array(buffer.length);
+
+    for (var c = 0; c < buffer.numberOfChannels; c++) {
+        var d = buffer.getChannelData(c);
+        for (var i = 0; i < d.length; i++) {
+            out[i] = out[i] + d[i] / buffer.numberOfChannels;
         }
     }
 
-    restore();
-
-    return context.close().catch(function () {
-        return null;
-    }).then(function () {
-        return { scores: aggregateScores(aggregate), windows: aggregate.windows };
-    });
+    return out;
 }
 
 
-// Mono-mixed, cut to [startSec, endSec) when those are given, and never shorter
-// than the model's window.
-function sliceAudioBuffer(context, audioBuffer, startSec, endSec) {
-    var rate = audioBuffer.sampleRate;
-
+function slice(samples, startSec, endSec) {
     var from = 0;
     if (typeof startSec === "number" && startSec > 0) {
-        from = Math.min(audioBuffer.length, Math.round(startSec * rate));
+        from = Math.min(samples.length, Math.round(startSec * LM_SR));
     }
 
-    var to = audioBuffer.length;
+    var to = samples.length;
     if (typeof endSec === "number" && endSec > 0) {
-        to = Math.min(audioBuffer.length, Math.round(endSec * rate));
+        to = Math.min(samples.length, Math.round(endSec * LM_SR));
     }
 
     if (to <= from) {
-        to = audioBuffer.length;
-        from = 0;
+        return samples;
     }
 
-    var wanted = Math.round(GTM_WINDOW_SECONDS * rate);
-    var length = Math.max(to - from, wanted);
-    var buffer = context.createBuffer(1, length, rate);
-    var out = buffer.getChannelData(0);
+    return samples.subarray(from, to);
+}
 
-    for (var channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
-        var data = audioBuffer.getChannelData(channel);
 
-        for (var i = 0; i < to - from; i++) {
-            out[i] = out[i] + data[from + i] / audioBuffer.numberOfChannels;
-        }
+function windowCount(length) {
+    if (length <= LM_WIN) {
+        return 1;
     }
 
-    return buffer;
+    return Math.round((length - LM_WIN) / (LM_SR * GTM_HOP)) + 1;
 }

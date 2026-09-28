@@ -420,6 +420,7 @@
 <script>
     var GTM_READY = {{ 'true' if gtm.ready else 'false' }};
     var GTM_SOURCE = "{{ gtm.source }}";
+    var GTM_CLASSES = {{ gtm.classes | tojson }};
 
     // The segments the server has just analysed. The browser scores each one
     // with the GTM model and posts the result back, so an upload is compared
@@ -437,7 +438,7 @@
 </script>
 <script src="{{ url_for('static', filename='js/upload.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.5.4/dist/speech-commands.min.js"></script>
+<script src="{{ url_for('static', filename='js/logmel.js') }}"></script>
 <script src="{{ url_for('static', filename='js/gtm.js') }}"></script>
 <script src="{{ url_for('static', filename='js/gtm_upload.js') }}"></script>
 {% endblock %}
