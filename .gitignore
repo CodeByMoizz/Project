@@ -24,10 +24,9 @@ python_models/*.pkl
 python_models/*.keras
 python_models/*.h5
 
-# exported Teachable Machine model
-gtm_model/*.bin
-gtm_model/model.json
-gtm_model/metadata.json
+# the exported browser model is small enough to keep in the repo, the raw
+# Teachable Machine archives are not
+gtm_model/*.zip
 
 # clips prepared for Teachable Machine upload and playback
 gtm_upload/

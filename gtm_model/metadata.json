@@ -1,0 +1,35 @@
+{
+  "version": "gtm_model_final",
+  "labels": [
+    "aggression",
+    "alarm_siren",
+    "animal_sound",
+    "background_noise",
+    "glass_breaking",
+    "gunshot",
+    "machinery_fault",
+    "panic_scream",
+    "person_asking_help",
+    "vehicle_horn"
+  ],
+  "aggregation": "mean over windows",
+  "features": {
+    "sample_rate": 16000,
+    "window": 16000,
+    "pad_to": 16384,
+    "frame_length": 1024,
+    "frame_step": 512,
+    "fft_length": 1024,
+    "mel_bins": 64,
+    "fmin": 20,
+    "fmax": 8000,
+    "log_offset": 1e-06,
+    "frames": 31,
+    "normalise": "per example: subtract mean, divide by std",
+    "input_shape": [
+      31,
+      64,
+      1
+    ]
+  }
+}

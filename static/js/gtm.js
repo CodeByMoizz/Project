@@ -116,41 +116,43 @@ function gtmPredict(samples) {
 // ---------------------------------------------------------------------------
 
 function newGtmAggregate() {
-    return { scores: null, windows: 0 };
+    return { rows: [], windows: 0 };
 }
 
 
 function mergeGtmWindow(aggregate, windowScores) {
-    var scores = aggregate.scores || {};
+    var row = [];
 
     for (var i = 0; i < gtmLabels.length; i++) {
-        var label = gtmLabels[i];
-        var value = windowScores[i];
-
-        if (!(label in scores) || value > scores[label]) {
-            scores[label] = value;
-        }
+        row.push(windowScores[i]);
     }
 
-    aggregate.scores = scores;
+    aggregate.rows.push(row);
     aggregate.windows = aggregate.windows + 1;
 }
 
 
+// Mean over the windows of the clip or segment. Chosen on the validation split:
+// mean beat max and top-3 mean on macro F1. Max let any window that faintly
+// resembled an event outvote the null class.
 function aggregateScores(aggregate) {
-    if (!aggregate || !aggregate.scores) {
+    if (!aggregate || !aggregate.rows.length) {
         return null;
     }
 
-    var copy = {};
+    var scores = {};
 
-    for (var label in aggregate.scores) {
-        if (aggregate.scores.hasOwnProperty(label)) {
-            copy[label] = aggregate.scores[label];
+    for (var i = 0; i < gtmLabels.length; i++) {
+        var total = 0;
+
+        for (var r = 0; r < aggregate.rows.length; r++) {
+            total = total + aggregate.rows[r][i];
         }
+
+        scores[gtmLabels[i]] = total / aggregate.rows.length;
     }
 
-    return copy;
+    return scores;
 }
 
 
@@ -248,7 +250,7 @@ function latestGtmWindowCount() {
 // ---------------------------------------------------------------------------
 
 // Scores the audio at url, or the [startSec, endSec) slice of it, and returns
-// {scores, windows} where scores holds the per-class maximum over the windows.
+// {scores, windows} where scores holds the per-class mean over the windows.
 function scoreAudioUrlWithGtm(url, startSec, endSec) {
     if (!gtmModel) {
         return Promise.reject(new Error("The GTM model is not loaded."));
