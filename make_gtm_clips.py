@@ -71,9 +71,6 @@ def main():
                 continue
             audio_id = os.path.splitext(os.path.basename(path))[0]
             for _, idx, seg in windows:
-                peak = np.max(np.abs(seg))
-                if peak > 0:
-                    seg = seg * (0.9 / peak)
                 name = "%s__seg%02d.wav" % (audio_id, idx)
                 sf.write(os.path.join(out_dir, name), seg.astype(np.float32), SR, subtype="PCM_16")
                 written += 1
