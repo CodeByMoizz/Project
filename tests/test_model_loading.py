@@ -42,14 +42,14 @@ def test_every_configured_model_declares_a_kind():
     from config.config import PYTHON_MODELS
 
     for name, settings in PYTHON_MODELS.items():
-        assert settings["kind"] in ("features", "spectrogram"), name
+        assert settings["kind"] in ("features", "spectrogram", "embedding"), name
 
 
 def test_spectrogram_models_declare_no_scaler():
     from config.config import PYTHON_MODELS
 
     for name, settings in PYTHON_MODELS.items():
-        if settings["kind"] == "spectrogram":
+        if settings["kind"] in ("spectrogram", "embedding"):
             assert settings.get("scaler_file") is None, name
 
 
@@ -76,3 +76,24 @@ def test_status_of_an_untrained_spectrogram_model(monkeypatch):
     # No CNN is trained yet, so this must report cleanly rather than raise.
     assert status["available"] is False
     assert "cnn" in status["message"]
+
+
+def test_yamnet_is_configured_as_an_embedding_model():
+    from config.config import PYTHON_MODELS
+
+    settings = PYTHON_MODELS["yamnet"]
+    assert settings["kind"] == "embedding"
+    assert settings["model_file"].endswith(".keras")
+    assert settings.get("scaler_file") is None
+
+
+def test_yamnet_paths_follow_the_config(monkeypatch):
+    import config.config as config
+    from src import python_model
+
+    monkeypatch.setattr(config, "ACTIVE_PYTHON_MODEL", "yamnet")
+    monkeypatch.setattr(python_model, "ACTIVE_PYTHON_MODEL", "yamnet")
+
+    paths = python_model.model_paths()
+    assert paths["scaler"] is None
+    assert "yamnet_model.keras" in str(paths["model"])

@@ -15,6 +15,7 @@ from feature_extraction.features import (
     extract_features_from_samples,
     features_to_vector,
 )
+from feature_extraction.embeddings import EMBEDDING_LENGTH, build_embedding
 from feature_extraction.spectrogram import build_spectrogram
 
 # Loaded once and kept, because loading a model per request is slow.
@@ -84,7 +85,7 @@ def load_model():
     paths = model_paths()
     kind = model_kind()
 
-    if kind == "spectrogram":
+    if kind in ("spectrogram", "embedding"):
         model = load_keras_model(paths["model"])
         scaler = None
 
@@ -149,7 +150,7 @@ def label_for_index(loaded, index):
     model = loaded["model"]
     classes = getattr(model, "classes_", None)
 
-    if loaded.get("kind") == "spectrogram":
+    if loaded.get("kind") in ("spectrogram", "embedding"):
         classes = None
 
     if classes is not None and index < len(classes):
@@ -204,6 +205,21 @@ def predict_from_spectrogram(loaded, samples, sr):
         return None
 
 
+def predict_from_embedding(loaded, samples, sr):
+    import numpy as np
+
+    embedding = build_embedding(samples, sr)
+
+    if embedding is None or len(embedding) != EMBEDDING_LENGTH:
+        return None
+
+    try:
+        batch = np.expand_dims(embedding, axis=0)
+        return loaded["model"].predict(batch, verbose=0)[0]
+    except Exception:
+        return None
+
+
 # Returns confidence scores for all ten classes, or None when no model is
 # loaded, so callers can show a message instead of failing.
 def get_prediction(samples, sr):
@@ -214,6 +230,8 @@ def get_prediction(samples, sr):
 
     if loaded.get("kind") == "spectrogram":
         probabilities = predict_from_spectrogram(loaded, samples, sr)
+    elif loaded.get("kind") == "embedding":
+        probabilities = predict_from_embedding(loaded, samples, sr)
     else:
         probabilities = predict_from_features(loaded, samples, sr)
 

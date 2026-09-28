@@ -175,8 +175,11 @@ function writeText(view, offset, text) {
 
 function sendWindow(samples, sampleRate) {
     // The GTM scores are read before the request, from the browser's own model,
-    // so the server's Python result cannot affect them.
+    // so the server's Python result cannot affect them. They are the per-class
+    // maximum over the windows of this segment; the aggregate is then reset so
+    // the next segment starts from its own audio.
     var gtmScores = latestGtmScores();
+    resetGtmAggregate();
 
     var blob = makeWavBlob(samples, sampleRate);
     var form = new FormData();

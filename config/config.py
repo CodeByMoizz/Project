@@ -49,6 +49,14 @@ PYTHON_MODELS = {
         "metrics_file": "cnn_metrics.json",
         "version": "cnn-v1",
     },
+    # Transfer learning: a small head on frozen YAMNet embeddings.
+    "yamnet": {
+        "kind": "embedding",
+        "model_file": "yamnet_model.keras",
+        "scaler_file": None,
+        "metrics_file": "yamnet_metrics.json",
+        "version": "yamnet-v1",
+    },
 }
 
 PYTHON_MODEL_DIR = PROJECT_ROOT / "python_models"

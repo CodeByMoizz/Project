@@ -34,3 +34,6 @@ gtm_upload/
 gtm_upload.zip
 gtm_playback/
 *.npz
+
+# downloaded YAMNet base model
+python_models/yamnet/

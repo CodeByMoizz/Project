@@ -13,3 +13,6 @@ pytest==9.1.1
 
 # only needed for the CNN model
 tensorflow==2.16.2
+
+# only needed to download YAMNet for the transfer-learning model
+tensorflow_hub==0.16.1

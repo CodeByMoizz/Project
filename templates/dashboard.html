@@ -131,8 +131,8 @@
                         {% endfor %}
                     </ol>
                     {% else %}
-                    <p class="muted">
-                        Not received. The GTM model runs in the browser on the Live Monitor page.
+                    <p class="muted" id="gtmUploadStatus">
+                        Scoring in the browser…
                     </p>
                     {% endif %}
                 </div>
@@ -417,5 +417,27 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+    var GTM_READY = {{ 'true' if gtm.ready else 'false' }};
+    var GTM_SOURCE = "{{ gtm.source }}";
+
+    // The segments the server has just analysed. The browser scores each one
+    // with the GTM model and posts the result back, so an upload is compared
+    // the same way a live segment is.
+    var GTM_PENDING = [
+        {% for item in results %}
+        {
+            detection_id: {{ item.detection_id }},
+            audio_url: "{{ url_for('audio_file', audio_id=item.audio_id) }}",
+            start_sec: {{ item.start_sec if item.start_sec is not none else 'null' }},
+            end_sec: {{ item.end_sec if item.end_sec is not none else 'null' }}
+        }{{ "," if not loop.last }}
+        {% endfor %}
+    ];
+</script>
 <script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.5.4/dist/speech-commands.min.js"></script>
+<script src="{{ url_for('static', filename='js/gtm.js') }}"></script>
+<script src="{{ url_for('static', filename='js/gtm_upload.js') }}"></script>
 {% endblock %}

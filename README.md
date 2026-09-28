@@ -185,6 +185,7 @@ Open each one from Drive in Colab and run the cells top to bottom:
 | 3 | `notebooks/XGBoost.ipynb` | Set Runtime > Change runtime type > T4 GPU first. |
 | 4 | `notebooks/SVM.ipynb` | Needs probability estimates, so each fit is slower. |
 | 5 | `notebooks/CNN.ipynb` | A GPU runtime is strongly recommended. Reads spectrograms, not the 215 features. |
+| 6 | `notebooks/YAMNet.ipynb` | Transfer learning. Fast even on CPU, because YAMNet stays frozen. |
 
 Any order works; they are independent. Run all four to compare them.
 
@@ -219,6 +220,7 @@ Each notebook writes four files into your Drive. The last cell lists them.
 | XGBoost | `xgboost_model.pkl`, `xgboost_scaler.pkl`, `label_encoder.pkl` | `xgboost_metrics.json` |
 | SVM | `svm_model.pkl`, `svm_scaler.pkl`, `label_encoder.pkl` | `svm_metrics.json` |
 | CNN | `cnn_model.keras`, `label_encoder.pkl` (no scaler) | `cnn_metrics.json` |
+| YAMNet | `yamnet_model.keras`, `label_encoder.pkl`, plus the `yamnet/` folder | `yamnet_metrics.json` |
 
 Download them and put them in the matching folders in the local project:
 
@@ -244,8 +246,8 @@ with accuracy, macro F1, precision and recall. Then set one line in `config/conf
 ACTIVE_PYTHON_MODEL = "xgboost"
 ```
 
-Valid values: `random_forest`, `svm`, `xgboost`, `logistic_regression`, `cnn`. No other
-file names a model. Restart the app afterwards.
+Valid values: `random_forest`, `svm`, `xgboost`, `logistic_regression`, `cnn`, `yamnet`. No
+other file names a model. Restart the app afterwards.
 
 Selecting `cnn` needs TensorFlow installed locally (`pip install tensorflow`). If it is
 missing the app still starts and every page works, and it reports that the model could
@@ -306,6 +308,7 @@ python src/plots.py
 |---|---|---|---|
 | `features` | random_forest, svm, xgboost, logistic_regression | 215 summary values | `feature_extraction/features.py` |
 | `spectrogram` | cnn | log-mel image, 64 x 94 x 1 | `feature_extraction/spectrogram.py` |
+| `embedding` | yamnet | 2048 YAMNet values | `feature_extraction/embeddings.py` |
 
 The kind is declared per model in `config/config.py` and the application picks the matching
 input automatically. The four feature models each need a scaler; the CNN does not, because
@@ -317,6 +320,26 @@ filters, dropout, dense units, learning rate, batch size): eight combinations ar
 each trained on the training split only and scored on the validation split, then the best one
 is retrained for longer with early stopping and learning-rate reduction before the test split
 is scored once.
+
+## The YAMNet transfer-learning model
+
+`yamnet` is the transfer-learning option the SRS allows. YAMNet is a MobileNet trained on
+Google's AudioSet, which already contains gunshots, breaking glass, sirens and screaming, so
+its features suit this task. It is kept frozen and only a small dense head is trained on the
+embeddings it produces, which is why it works well on a dataset of this size.
+
+It expects 16 kHz mono audio, which is exactly what the preprocessing already produces. Each
+3-second clip gives 6 frames of 1024 values, pooled by mean and max into one 2048-value
+embedding.
+
+The base model is about 17 MB and is downloaded once:
+
+```bash
+python feature_extraction/embeddings.py
+```
+
+That writes `python_models/yamnet/`, after which the app needs no internet. If the folder is
+missing, the code falls back to downloading from TensorFlow Hub at first use.
 
 ## Audio settings that affect accuracy
 
