@@ -1,140 +1,633 @@
-Chapter 1 — Introduction
+SONICSENTINEL AI
+Acoustic Threat Detection for Environments Cameras Cannot Cover
+
+Project Documentation
+
+Author:        Zarwasham Lodhi
+Co-authors:    Hamza Khan, Ibad Ur Rehman, Sarim Owais
+
+===============================================================================
+CHAPTER 1. INTRODUCTION
+===============================================================================
+
 1.1 Project Overview
+
+SonicSentinel AI listens. It takes audio from a live microphone or from an
+uploaded recording, decides what it is hearing across ten safety relevant sound
+classes, and raises an alert when something needs a human to look at it.
+
+The system does this twice, independently. One classifier runs on the server in
+Python. A second, completely separate classifier runs inside the browser tab.
+Neither is ever shown the other's answer. Where the two agree, the result is
+treated as confident. Where they disagree, the event is flagged for a person
+rather than quietly guessed at.
+
+See: reports/plots/architecture_diagram.png
+
 1.2 Problem Statement
+
+Camera systems are everywhere and they are blind to most of what matters. A
+camera pointed at a corridor does not know that a window broke in the room
+behind it. It cannot hear a scream from a stairwell outside its cone of view, or
+a machine beginning to fail in a plant room at three in the morning. Sound
+carries around corners and through walls. Video does not.
+
 1.3 Background
+
+Audio classification has become practical on ordinary hardware. Pretrained audio
+networks such as YAMNet expose general purpose embeddings that can be adapted to
+a specific set of classes with a modest amount of labelled data. At the same
+time, TensorFlow.js has made it possible to run a small convolutional network
+inside a browser tab at real time speed. Those two facts together are what make
+a two model design realistic for a project of this size.
+
 1.4 Business Necessity
+
+A single model that is confidently wrong is worse than no model. In a safety
+setting, a false alarm costs attention and a missed event costs more than that.
+Running two independent classifiers and comparing them turns a silent failure
+into a visible disagreement, which is something an operator can act on.
+
 1.5 Proposed Solution
+
+A Flask web application with:
+
+  - audio upload and live microphone capture
+  - a Python classifier on the server
+  - a second classifier running in the browser on the same audio
+  - an agreement and severity layer that decides what becomes an alert
+  - a manual review queue for anything uncertain
+  - event history, reporting and role based access
+
 1.6 Objectives
 
-Chapter 2 — System Analysis
+  - classify ten sound classes from one second of audio
+  - keep the two classifiers genuinely independent
+  - meet the accuracy and recall targets set out in the SRS
+  - keep all audio on the machine that recorded it
+
+
+===============================================================================
+CHAPTER 2. SYSTEM ANALYSIS
+===============================================================================
+
 2.1 Existing System
+
+Most deployed monitoring is video first. Where audio exists it is usually
+recorded for later review rather than classified as it arrives.
+
 2.2 Problems in Existing System
+
+  - line of sight limits what a camera can observe
+  - recorded audio is only useful after an incident, not during one
+  - a single model gives no signal about its own reliability
+
 2.3 Proposed System
+
+Two classifiers on the same audio, compared after the fact. Detections, scores,
+agreement status and review decisions are all written to a local database.
+
 2.4 Scope
+
+In scope: classification, alerting, review, reporting, local storage.
+Out of scope: speaker identification, transcription, multi site deployment.
+
 2.5 Assumptions
+
+  - audio arrives at 16 kHz mono after preprocessing
+  - the browser supports Web Audio and WebGL
+  - a single machine hosts both the server and the database
+
 2.6 Constraints
 
-Chapter 3 — Requirements
+  - the browser model must be small enough to load and run in a tab
+  - no audio may leave the local machine
+  - the browser model must be reproducible from the same features the
+    server pipeline produces
+
+
+===============================================================================
+CHAPTER 3. REQUIREMENTS
+===============================================================================
+
 3.1 Functional Requirements
+
+  FR1   upload audio files and analyse them
+  FR2   capture live microphone audio in fixed windows
+  FR3   classify every segment across all ten classes
+  FR4   run a second independent classifier in the browser
+  FR5   compare the two results and record an agreement status
+  FR6   apply severity rules and raise alerts
+  FR7   queue uncertain events for manual review
+  FR8   store detections, scores and audit records
+  FR9   role based access for admin, operator, reviewer and maintenance
+  FR10  export detections and show reporting
+
 3.2 Non-Functional Requirements
+
+NFR 4 sets the accuracy bar and is the one the models are measured against:
+
+  - overall test accuracy at or above 85 percent
+  - macro F1 at or above 0.80
+  - recall at or above 85 percent for each of Gunshot, Glass Breaking,
+    Panic Scream, Aggression and Person Asking for Help
+
 3.3 Hardware Requirements
+
+A standard laptop. No GPU is needed for inference. Training was done on Google
+Colab.
+
 3.4 Software Requirements
 
-Chapter 4 — System Design
+Python 3.11, Flask, librosa, scikit-learn, TensorFlow, TensorFlow.js, SQLite.
+
+
+===============================================================================
+CHAPTER 4. SYSTEM DESIGN
+===============================================================================
+
 4.1 System Architecture
+
+See: reports/plots/architecture_diagram.png
+
+Audio enters from one of two places, the microphone or an upload. It is
+preprocessed once into 16 kHz mono and cut into three second segments. That same
+audio then goes down two paths that never touch each other. The server extracts
+features and runs the Python model. The browser computes its own log-mel
+spectrogram and runs the browser model.
+
+The browser posts its scores to /api/gtm/<detection_id> only after the server has
+already stored its own decision. This ordering is deliberate. It is what
+guarantees the browser result cannot have been influenced by the server one.
+
 4.2 Module Description
-4.3 Data Flow Diagram
-4.4 Use Case Diagram
-4.5 Activity Diagram
-4.6 Sequence Diagram
-4.7 Decision Flow
 
-Chapter 5 — Dataset & Audio Processing
+  audio_preprocessing/   loading, resampling, segmentation, validation
+  feature_extraction/    features, spectrograms, embeddings, log-mel
+  src/                   training, analysis, comparison, decision, rules
+  static/js/             browser model loading, features, inference
+  templates/             the web interface
+  database/              SQLite schema and access
+
+4.3 Data Flow
+
+  audio -> preprocessing -> segments
+        -> server features  -> Python model  -> scores
+        -> browser log-mel  -> browser model -> scores
+        -> comparison -> severity -> alert, review or log
+
+4.4 Decision Flow
+
+See: reports/plots/decision_flow_diagram.png
+
+The agreement status takes one of four values: Agreement, Acceptable Match,
+Model Disagreement, or Awaiting GTM while the browser result has not arrived.
+
+
+===============================================================================
+CHAPTER 5. DATASET AND AUDIO PROCESSING
+===============================================================================
+
 5.1 Dataset Classes
+
+Ten classes, in the order used by the label encoder:
+
+  aggression, alarm_siren, animal_sound, background_noise, glass_breaking,
+  gunshot, machinery_fault, panic_scream, person_asking_help, vehicle_horn
+
+Five of these are critical: gunshot, glass_breaking, panic_scream, aggression
+and person_asking_help.
+
 5.2 Dataset Collection
+
+Clips were gathered per class and stored under audio_dataset/. Duplicate file
+contents were checked by hash so that the same audio could not appear under two
+different labels.
+
 5.3 Dataset Split
+
+  training      2096 files
+  validation     459 files
+  testing        445 files
+  total         3000 files
+
+The split is group aware by recording. A hash check across all three folders
+confirmed 3000 unique files with zero duplicates and zero overlap between
+splits. The testing folder was never used for training, tuning, early stopping
+or model selection.
+
+See: reports/plots/dataset_distribution.png
+
 5.4 Data Augmentation
+
+An augmented training set sits alongside the original training folder and is
+used only for training the browser model. Validation and testing are never
+augmented.
+
 5.5 Audio Preprocessing
+
+Mono conversion, resampling to 16 kHz, normalisation, silence trimming, optional
+noise reduction, then segmentation into three second windows with padding or
+truncation to a fixed length.
+
 5.6 Feature Extraction
-5.7 Waveform
-5.8 Spectrogram
 
-The SRS requires 3,000 original clips, approximately 300 per mandatory class, with a 70/15/15 train-validation-test split.
+Three feature families are used by different models:
 
-Chapter 6 — Machine Learning
-6.1 Python ML Pipeline
+  - hand crafted features: MFCC statistics, mel-dB statistics, chroma, zero
+    crossing rate, RMS and spectral shape descriptors
+  - YAMNet embeddings: 1024 mean pooled and 1024 max pooled, 2048 in total
+  - log-mel spectrograms: 31 frames by 64 mel bins, used by the browser model
+
+See: reports/plots/feature_pipeline_diagram.png
+See: reports/plots/example_spectrograms.png
+
+
+===============================================================================
+CHAPTER 6. MACHINE LEARNING, SERVER SIDE
+===============================================================================
+
+6.1 Pipeline
+
+Features are extracted once and cached. Every candidate is fitted on the
+training split only. Validation selects the winner. The test split is scored
+once, after the choice has been made.
+
 6.2 Models Tested
-6.3 Model Training
-6.4 Hyperparameter Tuning
-6.5 Model Evaluation
-6.6 Confusion Matrix
-6.7 Accuracy / Precision / Recall / F1
-6.8 Selected Model
 
-The SRS specifically requires comparison of at least three ML/DL models.
+Five server side models were trained and compared, which satisfies the SRS
+requirement for at least three.
 
-Chapter 7 — Google Teachable Machine
-7.1 GTM Dataset
-7.2 GTM Training
-7.3 GTM Classification
-7.4 GTM Confidence Scores
-7.5 Python vs GTM Comparison
+6.3 Results on the Test Split
 
-Chapter 8 — Detection & Alert System
-8.1 Sound Classification
-8.2 Confidence Threshold
-8.3 Model Agreement
-8.4 Repeated Detection
-8.5 Audio Quality
-8.6 Severity Levels
-8.7 Critical Event Detection
-8.8 Alert Generation
-8.9 Manual Review
+  Model                  Accuracy    Macro F1
+  Logistic Regression      68.09%      0.6812
+  Random Forest            69.44%      0.6904
+  SVM                      74.38%      0.7424
+  XGBoost                  74.83%      0.7455
+  YAMNet transfer          90.02%      0.9000
 
-For example, the SRS defines Gunshot, Panic Scream, and Person Asking for Help as critical-level events when the configured confirmation/confidence conditions are satisfied.
+See: reports/plots/model_comparison_final.png
 
-Chapter 9 — Web Application
-9.1 Login / Authentication
-9.2 Audio Upload
-9.3 Live Microphone
-9.4 Audio Metadata
-9.5 Waveform
-9.6 Spectrogram
-9.7 Python Prediction
-9.8 GTM Prediction
-9.9 Dashboard
-9.10 Event History
-9.11 Manual Review
-9.12 Reports
+6.4 Selected Model
 
-Chapter 10 — Database Design
+YAMNet transfer. A scikit-learn head on frozen YAMNet embeddings, selected on
+validation macro F1, scored once on the held out split.
 
-Database architecture
-Tables/collections
-Relationships
-Data dictionary
-Audio metadata
-Predictions
-Confidence scores
-Alerts
-Reviews
-Model versions
-Audit records
+6.5 Measurement Against NFR 4
 
-Chapter 11 — Testing
+  overall accuracy at or above 85 percent      PASS   90.02%
+  macro F1 at or above 0.80                    PASS   0.9000
+  gunshot recall at or above 85 percent        PASS   86.67%
+  glass_breaking recall at or above 85 percent PASS   95.56%
+  panic_scream recall at or above 85 percent   PASS   88.89%
+  aggression recall at or above 85 percent     PASS   97.78%
+  person_asking_help recall at or above 85%    PASS   86.96%
 
-Functional testing
-Integration testing
-Audio-format testing
-Microphone testing
-Silence testing
-Noise testing
-Model testing
-Alert testing
-Low-confidence testing
-Model disagreement
-Overlapping sounds
-Duplicate audio
-Hidden-test readiness
+The server side model meets every part of NFR 4.
 
-Chapter 12 — Security & Privacy
+One note on method. The YAMNet figures are computed per segment rather than per
+clip, so the denominator is 451 rather than 445. The other four models are
+scored per clip. This does not change the conclusion but it is not an exact like
+for like comparison and is recorded here rather than smoothed over.
 
-Chapter 13 — Results & Model Comparison
+Every metrics file in reports/ was checked by recomputing accuracy and macro F1
+directly from the confusion matrix stored in the same file. All five agree with
+their own matrices, with a largest deviation of 4.8e-05.
 
-Chapter 14 — Limitations
 
-Chapter 15 — Future Enhancements
+===============================================================================
+CHAPTER 7. THE BROWSER MODEL
+===============================================================================
 
-Chapter 16 — Installation & Execution
+7.1 First Attempt: Google Teachable Machine
 
-Chapter 17 — Conclusion
+The original second classifier was built with Google Teachable Machine. It
+exports directly to TensorFlow.js, which made it an obvious starting point for
+a model that has to run in a browser tab.
 
-Appendices
+7.2 The Platform Limitation
 
-Screenshots
-Test cases
-Sample predictions
-Dataset statistics
-Model results
-GitHub structure
-AI_USAGE.md
+Teachable Machine caps how much audio a class can be trained on. In practice the
+project could supply only around 100 one second samples per class before the
+tool would take no more. With ten classes that is roughly 1000 training samples
+in total, against a dataset of 3000 recordings that had already been collected
+and cleaned.
+
+The consequence is that most of the dataset simply could not be used. A class
+with 255 usable training recordings had to be reduced to 100 single second
+excerpts, one per recording, chosen by loudness. Everything else was discarded
+before training even began. The platform also gives no control over the training
+schedule, no class weighting, no early stopping criterion and no way to inspect
+what the network learned.
+
+7.3 Teachable Machine Results
+
+Three separate Teachable Machine models were exported and two were measured
+against the full test split:
+
+  Export 1    35.14% accuracy    macro F1 0.3460
+  Export 2    36.04% accuracy    macro F1 0.3425
+
+Against a ten class problem where chance is 10 percent, the model had learned
+something, but nowhere near enough. Background noise recall fell to under 9
+percent and the model funnelled a large share of every class into gunshot.
+
+This is a limitation of the platform rather than of the approach. Teachable
+Machine is built for quick demonstrations with a handful of examples, and it
+does that well. It is not built to consume three thousand labelled recordings,
+and when the data is there and the tool will not accept it, the ceiling is the
+tool.
+
+7.4 Second Attempt: An In-House Browser CNN
+
+The replacement is a small convolutional network trained on the full dataset and
+exported to TensorFlow.js. It fills exactly the same role, produces the same
+three artefacts in the same folder, and nothing downstream needed to change.
+
+Architecture: four convolution blocks of 32, 64, 128 and 128 filters, each with
+batch normalisation, ReLU and max pooling, followed by global average pooling,
+dropout at 0.3 and a dense softmax over ten classes. 242,602 parameters, which
+loads as a 970 KB weight shard.
+
+Input: a log-mel spectrogram of one second of audio, 31 frames by 64 mel bins.
+
+7.5 Feature Parity
+
+The one thing that can silently destroy a browser model is a mismatch between
+the features it was trained on and the features the browser produces at
+inference. Two earlier model generations on this project were lost to exactly
+that.
+
+So the features were written twice, once in Python and once in JavaScript, and
+the two were compared before any training took place:
+
+  backend   mean absolute difference   correlation
+  CPU                       3.7e-05      1.000000
+  WebGL                      1.7e-03      0.999976
+
+The gate was a mean absolute difference below 0.01 and a correlation above
+0.999. Both passed with a wide margin, on both the shared sample comparison and
+the full path where the browser decodes the audio file itself.
+
+See: reports/plots/feature_pipeline_diagram.png
+
+7.6 Aggregation Policy
+
+A clip is longer than the one second the model sees, so it is cut into
+overlapping windows and the per class scores are combined. Three policies were
+compared on the validation split only:
+
+  max over windows          80.39% accuracy   0.7978 macro F1
+  mean over windows         82.14% accuracy   0.8153 macro F1
+  mean of the top 3 windows 81.48% accuracy   0.8084 macro F1
+
+Mean over windows was selected on validation macro F1 and applied to both the
+live and the uploaded path.
+
+7.7 Browser Model Results
+
+  overall accuracy    75.73%
+  macro F1            0.7555
+
+  Class                    Precision   Recall      F1   Support
+  aggression                  0.9773   0.9556  0.9663        45
+  alarm_siren                 0.6250   0.6667  0.6452        45
+  animal_sound                0.8684   0.7333  0.7952        45
+  background_noise            0.7917   0.4222  0.5507        45
+  glass_breaking              0.7959   0.8667  0.8298        45
+  gunshot                     0.7805   0.7111  0.7442        45
+  machinery_fault             0.5857   0.9111  0.7130        45
+  panic_scream                0.7037   0.8444  0.7677        45
+  person_asking_help          0.9143   0.8000  0.8533        40
+  vehicle_horn                0.7143   0.6667  0.6897        45
+
+See: reports/plots/browser_cnn_confusion_matrix.png
+See: reports/plots/browser_cnn_per_class_metrics.png
+See: reports/plots/browser_cnn_critical_recall.png
+See: reports/plots/gtm_vs_browser_cnn.png
+
+Against NFR 4:
+
+  overall accuracy at or above 85 percent      FAIL   75.73%
+  macro F1 at or above 0.80                    FAIL   0.7555
+  gunshot recall at or above 85 percent        FAIL   71.11%
+  glass_breaking recall at or above 85 percent PASS   86.67%
+  panic_scream recall at or above 85 percent   FAIL   84.44%
+  aggression recall at or above 85 percent     PASS   95.56%
+  person_asking_help recall at or above 85%    FAIL   80.00%
+
+The browser model does not meet NFR 4. It is more than twice as good as the
+Teachable Machine model it replaced, gaining roughly 40 points of accuracy, and
+it still falls short of the bar.
+
+7.8 Model Parity After Conversion
+
+Converting a Keras model to TensorFlow.js can change it. Five test clips were
+scored in Python and again in the browser through the application's own code
+path. The largest absolute difference on any class probability was 2.287e-04,
+against a tolerance of 1e-02.
+
+The full test split was then run twice, once in Python and once through the
+browser. The two differ by a single clip out of 445:
+
+  Python    75.73% accuracy   0.7555 macro F1
+  Browser   75.51% accuracy   0.7533 macro F1
+
+
+===============================================================================
+CHAPTER 8. DETECTION AND ALERT SYSTEM
+===============================================================================
+
+8.1 Classification
+
+Each three second segment is scored by both models across all ten classes. The
+full score vector is stored, not only the winner.
+
+8.2 Model Agreement
+
+The two score sets are mapped onto canonical class ids and compared. The
+agreement status, the confidence difference and the top two margin are all
+recorded against the detection.
+
+8.3 Severity and Critical Events
+
+Gunshot, Panic Scream and Person Asking for Help are treated as critical when
+the configured confidence and confirmation conditions are met.
+
+8.4 Manual Review
+
+Disagreement between the two models routes the event to a review queue. A
+reviewer confirms or corrects it and the decision is written back into the
+event history.
+
+See: reports/plots/decision_flow_diagram.png
+
+
+===============================================================================
+CHAPTER 9. WEB APPLICATION
+===============================================================================
+
+  Landing page      public overview for signed out visitors
+  Login             account creation and sign in, four roles
+  Dashboard         upload audio, see both predictions and the comparison
+  Live Monitor      microphone capture, both models on the same stream
+  Event History     every detection, searchable
+  Alerts            active and resolved alerts
+  Manual Review     queue for uncertain and disagreeing events
+  Reports           analytics and saved training metrics per model
+  Admin             settings, users and audit records
+
+
+===============================================================================
+CHAPTER 10. DATABASE DESIGN
+===============================================================================
+
+Tables cover users, audio files, detections, alerts, reviews, settings and audit
+records. A detection row stores both score vectors, both predicted classes, both
+confidences, the model versions, the agreement status, the severity, the alert
+status and the review state.
+
+
+===============================================================================
+CHAPTER 11. TESTING
+===============================================================================
+
+The automated suite covers preprocessing, validation, feature extraction, model
+loading, the comparison and decision layers, the alert rules, the web routes and
+the browser model label mapping. 168 tests pass.
+
+Specific cases covered include silent audio, very short audio, unreadable files,
+duplicate uploads, model disagreement, a missing model file and a label ordering
+mismatch between the browser export and the label encoder.
+
+
+===============================================================================
+CHAPTER 12. SECURITY AND PRIVACY
+===============================================================================
+
+Audio never leaves the machine. The server runs locally and the browser model
+runs inside the page. Recordings and detections stay in the local SQLite
+database. Passwords are stored as hashes. Access to pages, actions and exports
+follows the account role.
+
+
+===============================================================================
+CHAPTER 13. RESULTS AND MODEL COMPARISON
+===============================================================================
+
+  Model                  Accuracy   Macro F1   Runs where
+  Logistic Regression      68.09%     0.6812   server
+  Random Forest            69.44%     0.6904   server
+  SVM                      74.38%     0.7424   server
+  XGBoost                  74.83%     0.7455   server
+  YAMNet transfer          90.02%     0.9000   server
+  Teachable Machine        36.04%     0.3425   browser
+  Browser CNN              75.73%     0.7555   browser
+
+See: reports/plots/model_comparison_final.png
+
+The server side model meets NFR 4 in full. The browser side model does not.
+
+
+===============================================================================
+CHAPTER 14. LIMITATIONS
+===============================================================================
+
+14.1 The Browser Model Falls Short of NFR 4
+
+At 75.73 percent accuracy and 0.7555 macro F1 the browser model misses the bar.
+The single biggest cause is background_noise, at 0.4222 recall. Twenty six of
+its forty five clips are scattered into vehicle_horn, machinery_fault, gunshot
+and alarm_siren. Because those false positives inflate other classes, that one
+class costs roughly 0.03 of macro F1 on its own. machinery_fault absorbs 70
+predictions for 45 true clips.
+
+14.2 Teachable Machine Could Not Use the Dataset
+
+Covered in 7.2. The tool would not accept more than roughly 100 samples per
+class, so most of a 3000 clip dataset went unused and the resulting model
+plateaued near 36 percent.
+
+14.3 Acoustically Similar Classes
+
+Gunshot and glass_breaking confuse in both directions. Both are short, loud,
+broadband transients and one second of audio does not always separate them.
+
+14.4 Measurement Consistency
+
+The YAMNet figures are per segment and the rest are per clip, as noted in 6.5.
+
+
+===============================================================================
+CHAPTER 15. FUTURE ENHANCEMENTS
+===============================================================================
+
+  - collect more and more varied background_noise recordings, which is the
+    highest leverage change available to the browser model
+  - longer context than one second for transient classes
+  - calibration so that the two models' confidences are comparable directly
+  - on device retraining from reviewer corrections
+
+
+===============================================================================
+CHAPTER 16. INSTALLATION AND EXECUTION
+===============================================================================
+
+  1. create the environment and install from requirements.txt
+  2. place the browser model in gtm_model/ as model.json, the weight shard
+     and metadata.json
+  3. place the trained server model in python_models/
+  4. run the application and open it in a browser
+
+Full instructions are in README.md.
+
+
+===============================================================================
+CHAPTER 17. CONCLUSION
+===============================================================================
+
+SonicSentinel AI works end to end. Audio comes in from a microphone or a file,
+two independent classifiers score it, the system compares them and decides
+whether to alert, queue for review or simply log.
+
+The server side model meets every requirement in NFR 4 at 90.02 percent accuracy
+and 0.9000 macro F1. The browser side model does not, at 75.73 percent and
+0.7555, though it more than doubles what the Teachable Machine model it replaced
+achieved.
+
+The honest position is that half the requirement is met and half is not, and the
+remaining gap has a known cause and a known fix.
+
+
+===============================================================================
+APPENDICES
+===============================================================================
+
+A. Figures
+
+  architecture_diagram.png                  system architecture
+  feature_pipeline_diagram.png              log-mel pipeline, both languages
+  decision_flow_diagram.png                 alert decision flow
+  model_comparison_final.png                every model on the test split
+  gtm_vs_browser_cnn.png                    Teachable Machine against the CNN
+  browser_cnn_confusion_matrix.png          browser model confusion matrix
+  browser_cnn_confusion_matrix_normalised.png
+  browser_cnn_per_class_metrics.png         precision, recall and F1 per class
+  browser_cnn_critical_recall.png           critical classes against the target
+  dataset_distribution.png                  class balance across splits
+  example_spectrograms.png                  sample inputs
+  <model>_confusion_matrix.png              one per server side model
+  <model>_per_class_metrics.png             one per server side model
+  <model>_critical_recall.png               one per server side model
+
+B. Result Files
+
+  reports/browser_cnn_test_predictions.csv  per clip browser model predictions
+  reports/gtm_test_predictions.csv          per clip Teachable Machine results
+  reports/<model>_metrics.json              full metrics per server side model
+
+C. Dataset Statistics
+
+  3000 unique recordings, 2096 train, 459 validation, 445 test
+  ten classes, no duplicate file contents, no overlap between splits

@@ -22,7 +22,7 @@ emergency-response or law-enforcement system.
   - Windows: install from ffmpeg.org and add it to PATH
 - On macOS, XGBoost needs OpenMP locally: `brew install libomp`. Without it `import
   xgboost` fails with "libxgboost.dylib could not be loaded". This only affects this
-  machine — Colab, where the models are trained, does not need it.
+  machine. Colab, where the models are trained, does not need it.
 - A modern browser with microphone support for live monitoring
 
 ## Installation
@@ -87,7 +87,7 @@ Roles: `user` uploads and views; `reviewer` also records review decisions; `oper
 
 ## Preparing the dataset
 
-Collect the recordings yourself — at least 3,000 original clips, around 300 per class — and
+Collect the recordings yourself (at least 3,000 original clips, around 300 per class) and
 put them in one folder per class:
 
 ```
@@ -164,7 +164,7 @@ MyDrive/SonicSentinel/
   reports/
 ```
 
-The code folders are required — the notebooks import from them. Run
+The code folders are required, the notebooks import from them. Run
 `prepare_dataset.py` and `augmentation.py` locally first, then upload
 `audio_dataset/` with the splits already built.
 
@@ -172,7 +172,7 @@ You do not need to upload `.venv/`, `database/`, `templates/` or `static/`.
 
 The prepared splits are about 850 MB (training 190 MB, augmented training 578 MB, validation
 42 MB, testing 40 MB), so allow time for the upload. You do not need to upload
-`audio_dataset/raw/` — the notebooks only read the four split folders.
+`audio_dataset/raw/`, the notebooks only read the four split folders.
 
 ### 2. Run the notebooks
 
@@ -196,7 +196,7 @@ PROJECT_PATH = '/content/drive/MyDrive/SonicSentinel'
 ```
 
 Every other path is derived from it. If Colab shows a "Restart runtime" button after the
-install cell, click it and carry on from the Drive mount cell — do not run the install
+install cell, click it and carry on from the Drive mount cell, do not run the install
 again.
 
 Each notebook prints the split sizes and per-class counts before the long step, so check
@@ -233,13 +233,13 @@ identical file. Keep one copy.
 **Prepare the dataset once, then run all four notebooks against that same prepared data.**
 `label_encoder.pkl` is shared and last-writer-wins. If you re-prepare the dataset between
 notebook runs, a later notebook can write an encoder whose class ordering differs from the
-one an earlier model was trained against. Nothing would fail — the app would load the model
+one an earlier model was trained against. Nothing would fail, the app would load the model
 and the newer encoder together, and every prediction would be silently mislabelled. If you
 do re-prepare the dataset, re-run all four notebooks.
 
 ### 4. Pick the winner
 
-Start the app and open the Reports page — it lists every model that has a metrics file,
+Start the app and open the Reports page, it lists every model that has a metrics file,
 with accuracy, macro F1, precision and recall. Then set one line in `config/config.py`:
 
 ```python
@@ -355,7 +355,7 @@ changes.
 
 ## Alert rules
 
-All rules live in `alert_rules/alert_rules.json` — no thresholds are written into the code.
+All rules live in `alert_rules/alert_rules.json`, no thresholds are written into the code.
 Each category configures its minimum confidence, top-two margin, required consecutive
 detections, model-agreement requirement, minimum audio quality, severity, recommended
 action, manual-review condition and escalation condition. The file is re-read on every
