@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # "kind" says what the model reads. "features" means the 215 summary values from
 # feature_extraction/features.py. "spectrogram" means the log-mel image from
 # feature_extraction/spectrogram.py, which is what the CNN uses.
-ACTIVE_PYTHON_MODEL = "xgboost"
+ACTIVE_PYTHON_MODEL = "yamnet"
 
 PYTHON_MODELS = {
     "random_forest": {
